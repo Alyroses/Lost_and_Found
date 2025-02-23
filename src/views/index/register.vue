@@ -1,11 +1,13 @@
 <template>
   <div class="container">
     <div class="tel-regist-page pc-style">
-      <div class="regist-title">
-        <span>注册新账号</span>
-        <span @click="router.push({ name: 'login' })" class="toWxLogin">我要登录</span>
+      <div class="regist-header">
+        <img :src="LogoIcon" alt="logo" class="logo-icon" />
+        <div class="regist-title">
+          <span>注册新账号</span>
+          <span @click="router.push({ name: 'login' })" class="toWxLogin">我要登录</span>
+        </div>
       </div>
-
       <div class="regist-padding">
         <div class="common-input">
           <img :src="MailIcon" class="left-icon" />
@@ -33,6 +35,15 @@
           </div>
         </div>
       </div>
+      <div class="regist-padding">
+        <div class="common-input">
+          <img :src="captchaImageUrl" alt="Captcha" class="captcha-img" @click="reloadCaptcha" />
+          <div class="input-view">
+            <input placeholder="请输入验证码" v-model="tData.loginForm.captcha" type="text" class="input" />
+            <p class="err-view"> </p>
+          </div>
+        </div>
+      </div>
       <div class="tel-login">
         <div class="next-btn-view">
           <button class="next-btn" @click="handleRegister">注册</button>
@@ -43,166 +54,194 @@
 </template>
 
 <script setup lang="ts">
-  import { userRegisterApi } from '/@/api/index/user';
-  import { message } from 'ant-design-vue';
-  import MailIcon from '/@/assets/images/mail-icon.svg';
-  import PwdIcon from '/@/assets/images/pwd-icon.svg';
+import { userRegisterApi } from '/@/api/index/user';
+import { message } from 'ant-design-vue';
+// 更换图片路径
+import LogoIcon from '/public/lost_found_logo.png';
+import MailIcon from '/@/assets/images/mail-icon.svg';
+import PwdIcon from '/@/assets/images/pwd-icon.svg';
 
-  const router = useRouter();
+const router = useRouter();
 
-  const tData = reactive({
-    loginForm: {
-      username: '',
-      password: '',
-      repassword: '',
-    },
-  });
+const tData = reactive({
+  loginForm: {
+    username: '',
+    password: '',
+    repassword: '',
+    captcha: ''
+  },
+});
 
-  const handleRegister = () => {
-    console.log('login');
-    if (tData.loginForm.username === '' || tData.loginForm.password === '' || tData.loginForm.repassword === '') {
-      message.warn('不能为空！');
-      return;
-    }
+const captchaImageUrl = ref('http://localhost:8000/myapp/index/user/generateCaptcha'); // 设置验证码生成的 URL
 
-    userRegisterApi({
-      username: tData.loginForm.username,
-      password: tData.loginForm.password,
-      repassword: tData.loginForm.repassword,
+const reloadCaptcha = () => {
+  captchaImageUrl.value = `http://localhost:8000/myapp/index/user/generateCaptcha?${new Date().getTime()}`;
+};
+
+const handleRegister = () => {
+  console.log('login');
+  if (tData.loginForm.username === '' || tData.loginForm.password === '' || tData.loginForm.repassword === '' || tData.loginForm.captcha === '') {
+    message.warn('不能为空！');
+    return;
+  }
+
+  userRegisterApi({
+    username: tData.loginForm.username,
+    password: tData.loginForm.password,
+    repassword: tData.loginForm.repassword,
+    captcha: tData.loginForm.captcha,
+  })
+    .then((res) => {
+      message.success('注册成功！');
+      router.push({ name: 'login' });
     })
-      .then((res) => {
-        message.success('注册成功！');
-        router.push({ name: 'login' });
-      })
-      .catch((err) => {
-        message.error(err.msg || '注册失败');
-      });
-  };
+    .catch((err) => {
+      message.error(err.msg || '注册失败');
+    });
+};
 </script>
 
 <style scoped lang="less">
-  div {
-    display: block;
-  }
+div {
+  display: block;
+}
 
-  *,
-  :after,
-  :before,
-  img {
-    border-style: none;
-  }
+.container {
+  max-width: 100%;
+  //background: #142131;
+  background-image: url('../images/login-background.jpg');
+  background-size: cover;
+  object-fit: cover;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-  *,
-  :after,
-  :before {
-    border-width: 0;
-    border-color: #dae1e7;
-  }
+.pc-style {
+  position: relative;
+  width: 400px;
+  height: 464px;
+  background: #fff;
+  -webkit-box-shadow: 2px 2px 6px #aaa;
+  box-shadow: 2px 2px 6px #aaa;
+  border-radius: 4px;
+}
 
-  .container {
-    max-width: 100%;
-    //background: #142131;
-    background-image: url('../images/admin-login-bg.jpg');
+.regist-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+
+  .logo-icon {
+    margin-right: 10px;
+    width: 48px;
+    height: 48px;
+  }
+}
+
+.tel-regist-page {
+  overflow: hidden;
+  background-size: cover;
+  position: relative;
+  z-index: 1;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('/public/images/register_form_image.jpg');
     background-size: cover;
-    object-fit: cover;
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    opacity: 0.5; // 设置透明度
+    z-index: -1;
   }
 
-  .pc-style {
-    position: relative;
-    width: 400px;
-    height: 464px;
-    background: #fff;
-    -webkit-box-shadow: 2px 2px 6px #aaa;
-    box-shadow: 2px 2px 6px #aaa;
-    border-radius: 4px;
+  .regist-title {
+    font-size: 14px;
+    color: #1e1e1e;
+    font-weight: 500;
+    height: 24px;
+    line-height: 24px;
+    margin: 40px 0;
+    padding: 0 28px;
+
+    .toWxLogin {
+      color: #3d5b96;
+      float: right;
+      cursor: pointer;
+    }
   }
 
-  .tel-regist-page {
-    overflow: hidden;
+  .regist-padding {
+    padding: 0 28px;
+    margin-bottom: 8px;
+  }
+}
 
-    .regist-title {
+.common-input {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: start;
+  -ms-flex-align: start;
+  align-items: flex-start;
+
+  .left-icon {
+    margin-right: 12px;
+    width: 24px;
+  }
+
+  .input-view {
+    -webkit-box-flex: 1;
+    -ms-flex: 1;
+    flex: 1;
+
+    .input {
+      font-weight: 500;
       font-size: 14px;
       color: #1e1e1e;
-      font-weight: 500;
-      height: 24px;
-      line-height: 24px;
-      margin: 40px 0;
-      padding: 0 28px;
-
-      .toWxLogin {
-        color: #3d5b96;
-        float: right;
-        cursor: pointer;
-      }
+      height: 26px;
+      line-height: 26px;
+      padding: 0;
+      display: block;
+      width: 100%;
+      letter-spacing: 1.5px;
+      outline: none; // 去掉边框线
     }
 
-    .regist-padding {
-      padding: 0 28px;
-      margin-bottom: 8px;
+    .err-view {
+      margin-top: 4px;
+      height: 16px;
+      line-height: 16px;
+      font-size: 12px;
+      color: #f62a2a;
     }
   }
+}
 
-  .common-input {
-    display: -webkit-box;
-    display: -ms-flexbox;
-    display: flex;
-    -webkit-box-align: start;
-    -ms-flex-align: start;
-    align-items: flex-start;
+.tel-login {
+  padding: 0 28px;
+}
 
-    .left-icon {
-      margin-right: 12px;
-      width: 24px;
-    }
+.next-btn {
+  background: #3d5b96;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+}
 
-    .input-view {
-      -webkit-box-flex: 1;
-      -ms-flex: 1;
-      flex: 1;
-
-      .input {
-        font-weight: 500;
-        font-size: 14px;
-        color: #1e1e1e;
-        height: 26px;
-        line-height: 26px;
-        padding: 0;
-        display: block;
-        width: 100%;
-        letter-spacing: 1.5px;
-        outline: none; // 去掉边框线
-      }
-
-      .err-view {
-        margin-top: 4px;
-        height: 16px;
-        line-height: 16px;
-        font-size: 12px;
-        color: #f62a2a;
-      }
-    }
-  }
-
-  .tel-login {
-    padding: 0 28px;
-  }
-
-  .next-btn {
-    background: #3d5b96;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 14px;
-    font-weight: 500;
-    height: 40px;
-    line-height: 40px;
-    text-align: center;
-    width: 100%;
-    outline: none;
-    cursor: pointer;
-  }
+.captcha-img {
+  margin-right: 20px;
+}
 </style>

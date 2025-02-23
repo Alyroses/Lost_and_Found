@@ -1,5 +1,5 @@
 //后端地址
-const BASE_URL = 'http://127.0.0.1:8001';
+const BASE_URL = 'http://127.0.0.1:8000';
 
 const USER_ID = 'user_id';
 const USER_NAME = 'user_name';

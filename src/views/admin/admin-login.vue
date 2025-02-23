@@ -39,7 +39,8 @@
 </template>
 
 <script setup lang="ts">
-import logoImage from '/@/assets/images/k-logo.png';
+// 更换图片路径
+import logoImage from '/public/lost_found_logo.png';
 import { useUserStore } from '/@/store';
 
 const router = useRouter();
