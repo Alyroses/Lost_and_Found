@@ -12,7 +12,7 @@
         <div class="common-input">
           <img :src="MailIcon" class="left-icon" />
           <div class="input-view">
-            <input placeholder="请输入注册邮箱" v-model="pageData.loginForm.username" type="text" class="input" />
+            <input placeholder="请输入注册邮箱或用户名" v-model="pageData.loginForm.username" type="text" class="input" />
             <p class="err-view"> </p>
           </div>
           <!---->
@@ -30,14 +30,14 @@
           <a href="/find_password.html">忘记密码</a>
         </div>
         <div class="next-btn-view">
-          <button class="next-btn btn-active" style="margin: 16px 0px" @click="handleLogin">登录</button>
+          <button class="next-btn btn-active" style="margin: 16px 72px" @click="handleLogin">登录</button>
         </div>
       </div>
       <!-- <div class="operation">
         <a class="forget-pwd" style="text-align: right">忘记密码？</a>
       </div> -->
       <div class="third_party">
-        <a @click="handleQQLogin" class="qq_login">QQ</a>
+        <a @click="qq_login" class="qq_login">QQ</a>
         <a href="#" class="weixin_login">微信</a>
         <a @click="handleCreateUser" class="register_btn">注册新帐号</a>
       </div>
@@ -53,6 +53,7 @@ import MailIcon from '/@/assets/images/mail-icon.svg';
 import PwdIcon from '/@/assets/images/pwd-icon.svg';
 import QQIcon from '/@/assets/images/qq-icon.svg'; // 引入QQ图标
 import { useUserStore } from '/@/store';
+import { qqLoginApi } from '/@/api/index/user'; // 确保导入 qqLoginApi
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -67,14 +68,7 @@ const pageData = reactive({
 
 const remember = ref(false);
 
-// const captchaImageUrl = ref('http://localhost:8000/myapp/index/user/generateCaptcha'); // 设置验证码生成的 URL
-
-// const reloadCaptcha = () => {
-//   captchaImageUrl.value = `http://localhost:8000/myapp/index/user/generateCaptcha?${new Date().getTime()}`;
-// };
-
 const handleLogin = () => {
-  
   userStore
     .login({
       username: pageData.loginForm.username,
@@ -89,7 +83,6 @@ const handleLogin = () => {
     })
     .catch((err) => {
       message.warn(err.msg || '登录失败');
-      // reloadCaptcha();
     });
 };
 
@@ -97,9 +90,31 @@ const handleCreateUser = () => {
   router.push({ name: 'register' });
 };
 
-const handleQQLogin = () => {
-  // 处理QQ登录逻辑
-  window.location.href = 'https://graph.qq.com/oauth2.0/authorize?response_type=code&client_id=YOUR_APP_ID&redirect_uri=YOUR_REDIRECT_URI&state=YOUR_STATE';
+const qq_login = () => {
+  // 获取参数
+  const next = get_query_string('next') || '/';
+  // 拼接请求:
+  qqLoginApi({ next })
+    .then(response => {
+      if (response.data.code === 0) {
+        // 成功则跳转
+        window.location.href = response.data.login_url;
+      } else {
+        message.error('获取 QQ 登录 URL 失败');
+      }
+    })
+    .catch(error => {
+      // 打印处理
+      console.log(error);
+      message.error('请求 QQ 登录 URL 失败');
+    });
+};
+
+const get_query_string = (name: string) => {
+  const reg = new RegExp('(^|&)' + name + '=([^&]*)(&|$)', 'i');
+  const r = window.location.search.substr(1).match(reg);
+  if (r != null) return unescape(r[2]);
+  return null;
 };
 
 const loginSuccess = () => {
@@ -250,7 +265,7 @@ div {
       font-weight: 500;
       font-size: 14px;
       color: #836666;
-      height: 40px;
+      height: 44px;
       line-height: 26px;
       border: none;
       padding: 13px;
@@ -270,17 +285,18 @@ div {
 }
 
 .next-btn {
-  background: #3d5b96;
+  background: #2966dc;
   border-radius: 4px;
   color: #fff;
   font-size: 16px;
   font-weight: 500;
-  height: 40px;
-  line-height: 40px;
+  height: 44px;
+  line-height: 45px;
   text-align: center;
-  width: 100%;
+  width: 60%;
   outline: none;
   cursor: pointer;
+  border-radius: 8px;
 }
 
 button {
@@ -337,7 +353,7 @@ textarea {
 .weixin_login{background-position:left -35px;}
 .register_btn{background:url(../images/icons02.png) left 9px no-repeat;float:right;margin-right:15px}
 
-.more_input{position:absolute;left:0;bottom: 120px;width:100%}
+.more_input{position:absolute;left:0;bottom: 103px;width:100%}
 
 .more_input input{float:left;margin-top:6px;margin-left: 20px;}
 .more_input label{float:left;margin-left:10px;font-size: 16px;}

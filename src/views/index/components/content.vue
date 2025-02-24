@@ -47,6 +47,13 @@
           :defaultPageSize="contentData.pageSize" :total="contentData.total" :showSizeChanger="false" />
       </div>
     </div>
+    <div class="content-notice">
+      <h4>通知公告栏</h4>
+      <div class="notice-item" v-for="(notice, index) in notices" :key="index">
+        <h5>{{ notice.title }}</h5>
+        <p>{{ notice.content }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -83,6 +90,12 @@ const contentData = reactive({
   total: 0,
   pageSize: 12,
 });
+
+const notices = reactive([
+  { title: '公告1', content: '这是公告内容1' },
+  { title: '公告2', content: '这是公告内容2' },
+  // 可以添加更多公告
+]);
 
 onMounted(() => {
   initSider();
@@ -187,8 +200,12 @@ const getThingList = (data) => {
 .content {
   display: flex;
   flex-direction: row;
-  width: 1100px;
-  margin: 80px auto;
+  width: 93%;
+  margin: 56px auto;
+  background-image: url('/public/bg_main.jpg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.8; // 设置透明度
 }
 
 .content-left {
@@ -549,6 +566,31 @@ li {
     text-align: center;
     margin-top: 48px;
   }
+}
+
+.content-notice {
+  width: 220px;
+  margin-left: 32px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.notice-item {
+  margin-bottom: 16px;
+}
+
+.notice-item h5 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #333;
+}
+
+.notice-item p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
 }
 
 .a-price-symbol {

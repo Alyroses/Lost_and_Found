@@ -4,15 +4,26 @@
       <div class="regist-header">
         <img :src="LogoIcon" alt="logo" class="logo-icon" />
         <div class="regist-title">
-          <span>注册新账号</span>
-          <span @click="router.push({ name: 'login' })" class="toWxLogin">我要登录</span>
+          <span class="regist-title-text">注册新账号</span>
+          <span @click="router.push({ name: 'login' })" class="toWxLogin">
+            我要登录
+          </span>
+        </div>
+      </div>
+      <div class="regist-padding">
+        <div class="common-input">
+          <img :src="UserIcon" class="left-icon" />
+          <div class="input-view">
+            <input placeholder="请输入用户名" v-model="tData.loginForm.username" type="text" class="input" />
+            <p class="err-view"> </p>
+          </div>
         </div>
       </div>
       <div class="regist-padding">
         <div class="common-input">
           <img :src="MailIcon" class="left-icon" />
           <div class="input-view">
-            <input placeholder="请输入邮箱" v-model="tData.loginForm.username" type="text" class="input" />
+            <input placeholder="请输入邮箱" v-model="tData.loginForm.email" type="text" class="input" />
             <p class="err-view"> </p>
           </div>
         </div>
@@ -37,7 +48,19 @@
       </div>
       <div class="regist-padding">
         <div class="common-input">
-          <img :src="captchaImageUrl" alt="Captcha" class="captcha-img" @click="reloadCaptcha" />
+          <img :src="CodeIcon" class="left-icon" />
+          <div class="input-view">
+            <input placeholder="请输入邮箱验证码" v-model="tData.loginForm.emailCode" type="text" class="input" />
+            <p class="err-view"> </p>
+          </div>
+          <button class="get-code-btn" @click="getEmailCode">获取验证码</button>
+        </div>
+      </div>
+      <div class="regist-padding">
+        <div class="common-input">
+          <div class="captcha-container">
+            <img :src="captchaImageUrl" alt="Captcha" class="captcha-img" @click="reloadCaptcha" />
+          </div>
           <div class="input-view">
             <input placeholder="请输入验证码" v-model="tData.loginForm.captcha" type="text" class="input" />
             <p class="err-view"> </p>
@@ -54,18 +77,23 @@
 </template>
 
 <script setup lang="ts">
-import { userRegisterApi } from '/@/api/index/user';
+import { userRegisterApi, sendEmailCodeApi } from '/@/api/index/user'; // 确保导入 sendEmailCodeApi
 import { message } from 'ant-design-vue';
 // 更换图片路径
 import LogoIcon from '/public/lost_found_logo.png';
+import UserIcon from '/@/assets/images/username_icon.png';
 import MailIcon from '/@/assets/images/mail-icon.svg';
 import PwdIcon from '/@/assets/images/pwd-icon.svg';
+import CodeIcon from '/@/assets/images/code-icon.svg';
+import LoginIcon from '/public/images/icons02.png';
 
 const router = useRouter();
 
 const tData = reactive({
   loginForm: {
     username: '',
+    email: '',
+    emailCode: '',
     password: '',
     repassword: '',
     captcha: ''
@@ -80,13 +108,15 @@ const reloadCaptcha = () => {
 
 const handleRegister = () => {
   console.log('login');
-  if (tData.loginForm.username === '' || tData.loginForm.password === '' || tData.loginForm.repassword === '' || tData.loginForm.captcha === '') {
+  if (tData.loginForm.username === '' || tData.loginForm.email === '' || tData.loginForm.emailCode === '' || tData.loginForm.password === '' || tData.loginForm.repassword === '' || tData.loginForm.captcha === '') {
     message.warn('不能为空！');
     return;
   }
 
   userRegisterApi({
     username: tData.loginForm.username,
+    email: tData.loginForm.email,
+    emailCode: tData.loginForm.emailCode,
     password: tData.loginForm.password,
     repassword: tData.loginForm.repassword,
     captcha: tData.loginForm.captcha,
@@ -97,6 +127,23 @@ const handleRegister = () => {
     })
     .catch((err) => {
       message.error(err.msg || '注册失败');
+    });
+};
+
+const getEmailCode = () => {
+  if (tData.loginForm.email === '') {
+    message.warn('请输入邮箱');
+    return;
+  }
+
+  const emailCode = Math.random().toString(36).substring(2, 8).toUpperCase(); // 生成随机6位数验证码
+
+    sendEmailCodeApi({ email: tData.loginForm.email, code: emailCode })
+    .then((res) => {
+      message.success('验证码已发送');
+    })
+    .catch((err) => {
+      message.error(err.msg || '获取验证码失败');
     });
 };
 </script>
@@ -121,23 +168,23 @@ div {
 
 .pc-style {
   position: relative;
-  width: 400px;
-  height: 464px;
+  width: 440px;
+  height: 665px;
   background: #fff;
   -webkit-box-shadow: 2px 2px 6px #aaa;
-  box-shadow: 2px 2px 6px #aaa;
+  box-shadow:  5px 6px 7px #d84747;;
   border-radius: 4px;
 }
 
 .regist-header {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 
   .logo-icon {
     margin-right: 10px;
-    width: 48px;
-    height: 48px;
+    width: 76px;
+    height: 80px;
   }
 }
 
@@ -161,18 +208,31 @@ div {
   }
 
   .regist-title {
-    font-size: 14px;
-    color: #1e1e1e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    color: #824a02;
     font-weight: 500;
     height: 24px;
     line-height: 24px;
     margin: 40px 0;
     padding: 0 28px;
-
+    gap:50px;
     .toWxLogin {
-      color: #3d5b96;
-      float: right;
+      color: #e91c12;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      background: url('/public/images/icons02.png') left 5px no-repeat;
+      text-indent: 58px;
+      margin-left: auto;
+
+      .login-icon {
+        margin-left: 30px;
+        width: 20px;
+        height: 30px;
+      }
     }
   }
 
@@ -193,6 +253,7 @@ div {
   .left-icon {
     margin-right: 12px;
     width: 24px;
+    margin-top: 7px;
   }
 
   .input-view {
@@ -204,9 +265,9 @@ div {
       font-weight: 500;
       font-size: 14px;
       color: #1e1e1e;
-      height: 26px;
+      height: 44px;
       line-height: 26px;
-      padding: 0;
+      padding: 10px;
       display: block;
       width: 100%;
       letter-spacing: 1.5px;
@@ -223,15 +284,40 @@ div {
   }
 }
 
+.captcha-container {
+  padding: 5px;
+  border-radius: 4px;
+}
+
+.captcha-img {
+  margin-right: 20px;
+  margin-top: 1px;
+  border-radius: 4px;
+}
+
+.get-code-btn {
+  background: #5c7cba;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  padding: 0 15px;
+  margin-left: 10px;
+  cursor: pointer;
+}
+
 .tel-login {
   padding: 0 28px;
 }
 
 .next-btn {
-  background: #3d5b96;
+  background: #5c7cba;
   border-radius: 4px;
-  color: #fff;
-  font-size: 14px;
+  color: #ef9f04;
+  font-size: 20px;
   font-weight: 500;
   height: 40px;
   line-height: 40px;
@@ -241,7 +327,7 @@ div {
   cursor: pointer;
 }
 
-.captcha-img {
-  margin-right: 20px;
+.regist-title-text{
+  font-size: 26px;
 }
 </style>

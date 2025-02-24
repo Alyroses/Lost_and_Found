@@ -87,7 +87,7 @@
                 </a-form-item>
               </a-col>
               <a-col span="12">
-                <a-form-item label="联系人手机号">
+                <a-form-item label="联系号码">
                   <a-input-number placeholder="请输入" :min="0" v-model:value="modal.form.mobile" style="width: 100%" />
                 </a-form-item>
               </a-col>
@@ -100,8 +100,8 @@
               <a-col span="12">
                 <a-form-item label="状态" name="status">
                   <a-select placeholder="请选择" allowClear v-model:value="modal.form.status">
-                    <a-select-option key="0" value="0">上架</a-select-option>
-                    <a-select-option key="1" value="1">下架</a-select-option>
+                    <a-select-option key="0" value="0">上架（进行查找）</a-select-option>
+                    <a-select-option key="1" value="1">下架（无果或者已找到）</a-select-option>
                   </a-select>
                 </a-form-item>
               </a-col>
@@ -140,7 +140,7 @@ const columns = reactive([
     key: 'price',
   },
   {
-    title: '联系人手机号',
+    title: '联系号码',
     dataIndex: 'mobile',
     key: 'mobile',
   },
@@ -227,11 +227,12 @@ const modal = reactive({
     price: undefined,
     mobile: undefined,
 
-    location: undefined,
+    location: '',
     status: undefined,
     cover: undefined,
     coverUrl: undefined,
-    imageFile: undefined,
+    imageFile: null as File | null,
+    description: undefined,
   },
   rules: {
     title: [{ required: true, message: '请输入名称', trigger: 'change' }],

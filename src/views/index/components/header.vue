@@ -1,9 +1,11 @@
 <template>
   <div class="main-bar-view">
     <div class="logo">
-      <img :src="logoImage" class="search-icon" @click="$router.push({ name: 'portal' })" />
+      <img :src="LogoIcon" class="search-icon" @click="$router.push({ name: 'portal' })" />
     </div>
-    <span class="header-title">失物招领平台</span>&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;
+    <span class="header-title">失物招领平台</span>
+    <span class="header-title-english">LOST & FOUND </span>
+    &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;
     <div class="search-entry">
       <img :src="SearchIcon" class="search-icon" />
       <input placeholder="输入关键词" ref="keywordRef" @keyup.enter="search" />
@@ -81,6 +83,7 @@
 
 <script setup lang="ts">
 import { message } from 'ant-design-vue';
+import LogoIcon from '/public/lost_found_logo.png';
 import { listApi as UserListApi } from '/@/api/admin/user';
 import { listApi, noticebyidApi } from '/@/api/index/notice';
 import AvatarIcon from '/@/assets/images/avatar.jpg';
@@ -208,7 +211,7 @@ const handlemap = () => {
   left: 0;
   height: 56px;
   width: 100%;
-  background: #fff;
+  background: #f2a4a4;
   border-bottom: 1px solid #cedce4;
   padding-left: 48px;
   z-index: 16;
@@ -220,18 +223,29 @@ const handlemap = () => {
 }
 
 .header-title {
-  margin-left: 16px;
-  font-size: 20px;
+  margin-left: 0px;
+  font-size: 24px;
   font-weight: bold;
   text-align: center;
+  color: #bd6940;
+  margin-top: 8px;
 }
+.header-title-english{
+  font-size: 20px;
+  text-align: center;
+  margin-top: 8px;
+  margin-left: 20px;
+  color: #e1df66;
+  font-weight: bold;
+}
+
 
 .logo {
   margin-right: 24px;
 
   img {
-    width: 32px;
-    height: 32px;
+    width: 67px;
+    height: 73px;
     cursor: pointer;
   }
 }
