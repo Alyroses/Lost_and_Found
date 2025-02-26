@@ -51,6 +51,11 @@ export default {
                         this.map = new window.BMapGL.Map("map");
                         this.map.centerAndZoom(centerPoint, 15); // 设置地图中心点为当前位置
                         this.map.enableScrollWheelZoom(true); // 启用滚轮缩放
+
+                        // 添加当前位置标记
+                        const marker = new window.BMapGL.Marker(centerPoint);
+                        this.map.addOverlay(marker);
+                        marker.setAnimation(window.BMAP_ANIMATION_BOUNCE); // 设置标记点跳动动画
                     },
                     (error) => {
                         console.error("获取位置信息失败：", error);
@@ -122,7 +127,7 @@ export default {
             map: null,
             markers: [],
             thingData: [],
-            location: [],
+            locations: [],
         };
     },
 };

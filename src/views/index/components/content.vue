@@ -3,8 +3,10 @@
     <div class="content-left">
       <div class="left-search-item">
         <h4>物品分类</h4>
-        <a-tree :tree-data="contentData.cData" :selected-keys="contentData.selectedKeys" @select="onSelect"
-          style="min-height: 220px" />
+        <div class="tree-container">
+          <a-tree :tree-data="contentData.cData" :selected-keys="contentData.selectedKeys" @select="onSelect"
+            style="min-height: 220px" />
+        </div>
       </div>
       <div class="left-search-item">
         <h4>标签分类</h4>
@@ -202,7 +204,7 @@ const getThingList = (data) => {
   flex-direction: row;
   width: 93%;
   margin: 56px auto;
-  background-image: url('/public/bg_main.jpg');
+  background-image: url('/bg_main.jpg'); // 使用根路径引用 public 目录中的文件
   background-size: cover;
   background-position: center;
   opacity: 0.8; // 设置透明度
@@ -218,6 +220,12 @@ const getThingList = (data) => {
   border-bottom: 1px solid #cedce4;
   margin-top: 24px;
   padding-bottom: 24px;
+}
+
+.tree-container {
+  background-color: #12e3ee; // 设置背景颜色
+  padding: 10px;
+  border-radius: 4px;
 }
 
 h4 {
@@ -463,9 +471,12 @@ li {
       }
 
       .tab {
-        color: #999;
+        color: #1efc17e0;
         margin-right: 20px;
         cursor: pointer;
+        font-size: 20px;
+        font-weight: bold;
+        
       }
 
       .tab-select {

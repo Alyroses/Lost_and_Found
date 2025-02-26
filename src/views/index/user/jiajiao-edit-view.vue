@@ -1,6 +1,6 @@
 <template>
   <div class="content-list">
-    <div class="list-title">发布失物与招领</div>
+    <div class="list-title">发布失物信息</div>
     <a-spin :spinning="loading" style="min-height: 200px;">
       <div class="list-content">
         <div class="edit-view">

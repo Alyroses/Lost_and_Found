@@ -1,8 +1,9 @@
 <template>
   <div id="userLayout">
     <div class="user-layout-header">
-      <img class="logo" :src="logoImage" alt="" />
-      <span>后台管理系统</span>
+      <img class="logo" :src="LogoIcon" alt="" />
+      <span class="text_speak_english">LOST & FOUND </span>
+      <span class="text_speak"> 欢迎来到失物招领后台管理系统！</span>
     </div>
     <div class="main-container">
       <div class="main">
@@ -10,13 +11,13 @@
           <h2 class="sys_title">管理员登录</h2>
           <a-form ref="myform" layout="vertical" :model="data.loginForm" :rules="data.rules" :hideRequiredMark="true">
             <a-form-item name="username" label="账号" :colon="false">
-              <a-input size="large" placeholder="请输入登录账号" v-model:value="data.loginForm.username"
-                @pressEnter="handleSubmit">
-                <a-icon slot="prefix" type="user" />
-              </a-input>
+            <a-input size="large" class="input_txt" placeholder="请输入登录账号" v-model:value="data.loginForm.username"
+              @pressEnter="handleSubmit">
+              <a-icon slot="prefix" type="user" />
+            </a-input>
             </a-form-item>
             <a-form-item name="password" label="密码" :colon="false">
-              <a-input size="large" type="password" placeholder="请输入登录密码" v-model:value="data.loginForm.password"
+              <a-input size="large" class="input_txt" type="password" placeholder="请输入登录密码" v-model:value="data.loginForm.password"
                 @pressEnter="handleSubmit">
                 <a-icon slot="prefix" type="lock" />
               </a-input>
@@ -39,8 +40,7 @@
 </template>
 
 <script setup lang="ts">
-// 更换图片路径
-import logoImage from '/public/lost_found_logo.png';
+import LogoIcon from '/public/lost_found_logo.png';
 import { useUserStore } from '/@/store';
 
 const router = useRouter();
@@ -58,7 +58,7 @@ const data = reactive({
     password: '',
   },
   rules: {
-    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+    username: [{ required: true, message: '请输入管理员用户名', trigger: 'blur' }],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   },
 });
@@ -108,20 +108,16 @@ const loginSuccess = () => {
     line-height: 80px;
 
     .logo {
-      width: 36px;
-      height: 36px;
-      margin-right: 16px;
-      margin-top: -4px;
+      width: 105px;
+      height: 100px;
+      margin-right: -8px;
+      margin-top: -8px;
     }
   }
 
   .main-container {
-    width: 100%;
     height: calc(100vh - 160px);
-    background-image: url('../images/admin-login-bg.jpg');
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
+    background:linear-gradient(45deg,#cffafa,#e3c0ca);
 
     .main {
       position: absolute;
@@ -141,11 +137,11 @@ const loginSuccess = () => {
         user-select: none;
 
         .sys_title {
-          font-size: 24px;
-          color: fade(#000, 85%);
-          font-weight: bold;
-          user-select: none;
-          padding-bottom: 8px;
+          line-height:72px;
+          text-align:center;
+          background:linear-gradient(90deg,rgba(240, 189, 123, 0.6),rgba(242, 164, 226, 0.6));
+          color:#c46e5b;
+          font-size:25px;
         }
 
         :deep(.ant-form-item label) {
@@ -163,7 +159,16 @@ const loginSuccess = () => {
         }
 
         .login-button {
-          background: linear-gradient(128deg, #00aaeb, #00c1cd 59%, #0ac2b0 100%);
+
+          display:block;
+          margin:35px auto 0;
+          width:298px;
+          height:40px;
+          border:5px;
+          border-radius:4px;
+          background:rgba(247,60,45,0.6);
+          color:#fff;
+          cursor:pointer;
         }
       }
 
@@ -176,5 +181,30 @@ const loginSuccess = () => {
   .footer {
     height: 80px;
   }
+}
+.text_speak{
+  margin: -55px 0 0 14px;
+  font-size: 25px;
+  color: #eebf51;
+
+}
+.text_speak_english{
+  margin: -55px 0 0 14px;
+  font-size: 25px;
+  color: #eebf51;
+
+}
+.input_txt{
+  display:block;
+  margin:-41px auto 0;
+  width:254px;
+  height:44px;
+  border:2px solid #e1c080;
+  border-radius:11px;
+  outline:none;
+  text-indent:10px;
+}
+.form_item_name{
+  margin-top: 100px;
 }
 </style>

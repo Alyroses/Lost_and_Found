@@ -22,8 +22,8 @@
         </template>
       </el-popover>
       <a-button type="link" @click="handlemap()">分布地图</a-button>
-      <a-button type="link" @click="handleJoin()">发布失物与招领</a-button>
-
+      <a-button type="link" @click="handleJoin()">发布失物信息</a-button>
+      <a-button type="link" @click="handleJoin()">发布拾物信息</a-button>
 
       <template v-if="userStore.user_token">
         <a-dropdown>
