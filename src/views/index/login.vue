@@ -96,9 +96,9 @@ const qq_login = () => {
   // 拼接请求:
   qqLoginApi({ next })
     .then(response => {
-      if (response.data.code === 0) {
+      if (response.code === 0) {
         // 成功则跳转
-        window.location.href = response.data.login_url;
+        window.location.href = response.login_url;
       } else {
         message.error('获取 QQ 登录 URL 失败');
       }
@@ -118,7 +118,7 @@ const get_query_string = (name: string) => {
 };
 
 const loginSuccess = () => {
-  router.push({ name: 'portal' });
+  router.push({ name: 'oauth_callback' });
   message.success('登录成功！');
 };
 </script>

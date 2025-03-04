@@ -11,10 +11,10 @@
           <h2 class="sys_title">管理员登录</h2>
           <a-form ref="myform" layout="vertical" :model="data.loginForm" :rules="data.rules" :hideRequiredMark="true">
             <a-form-item name="username" label="账号" :colon="false">
-            <a-input size="large" class="input_txt" placeholder="请输入登录账号" v-model:value="data.loginForm.username"
-              @pressEnter="handleSubmit">
-              <a-icon slot="prefix" type="user" />
-            </a-input>
+              <a-input size="large" class="input_txt" placeholder="请输入登录账号" v-model:value="data.loginForm.username"
+                @pressEnter="handleSubmit">
+                <a-icon slot="prefix" type="user" />
+              </a-input>
             </a-form-item>
             <a-form-item name="password" label="密码" :colon="false">
               <a-input size="large" class="input_txt" type="password" placeholder="请输入登录密码" v-model:value="data.loginForm.password"

@@ -53,7 +53,9 @@
             <input placeholder="请输入邮箱验证码" v-model="tData.loginForm.emailCode" type="text" class="input" />
             <p class="err-view"> </p>
           </div>
-          <button class="get-code-btn" @click="getEmailCode">获取验证码</button>
+          <button class="get-code-btn" @click="getEmailCode" :disabled="countdown > 0">
+            {{ countdown > 0 ? `${countdown}秒后重新获取` : '获取验证码' }}
+          </button>
         </div>
       </div>
       <div class="regist-padding">
@@ -80,7 +82,7 @@
 import { userRegisterApi, sendEmailCodeApi } from '/@/api/index/user'; // 确保导入 sendEmailCodeApi
 import { message } from 'ant-design-vue';
 // 更换图片路径
-import LogoIcon from '/public/lost_found_logo.png';
+import LogoIcon from '/lost_found_logo.png';
 import UserIcon from '/@/assets/images/username_icon.png';
 import MailIcon from '/@/assets/images/mail-icon.svg';
 import PwdIcon from '/@/assets/images/pwd-icon.svg';
@@ -101,6 +103,7 @@ const tData = reactive({
 });
 
 const captchaImageUrl = ref('http://localhost:8000/myapp/index/user/generateCaptcha'); // 设置验证码生成的 URL
+const countdown = ref(0); // 倒计时
 
 const reloadCaptcha = () => {
   captchaImageUrl.value = `http://localhost:8000/myapp/index/user/generateCaptcha?${new Date().getTime()}`;
@@ -138,13 +141,27 @@ const getEmailCode = () => {
 
   const emailCode = Math.random().toString(36).substring(2, 8).toUpperCase(); // 生成随机6位数验证码
 
-    sendEmailCodeApi({ email: tData.loginForm.email, code: emailCode })
+  sendEmailCodeApi({ email: tData.loginForm.email, code: emailCode })
     .then((res) => {
       message.success('验证码已发送');
+      startCountdown(); // 开始倒计时
     })
     .catch((err) => {
       message.error(err.msg || '获取验证码失败');
     });
+};
+
+const startCountdown = () => {
+  countdown.value = 60; // 2分钟倒计时
+  const interval = setInterval(() => {
+    countdown.value--;
+    if (countdown.value <= 0) {
+      clearInterval(interval);
+      if (!tData.loginForm.emailCode) {
+        message.warn('请填写验证码');
+      }
+    }
+  }, 1000);
 };
 </script>
 
@@ -201,7 +218,7 @@ div {
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url('/public/images/register_form_image.jpg');
+    background-image: url('/images/register_form_image.jpg');
     background-size: cover;
     opacity: 0.5; // 设置透明度
     z-index: -1;
@@ -224,7 +241,7 @@ div {
       cursor: pointer;
       display: flex;
       align-items: center;
-      background: url('/public/images/icons02.png') left 5px no-repeat;
+      background: url('/images/icons02.png') left 5px no-repeat;
       text-indent: 58px;
       margin-left: auto;
 

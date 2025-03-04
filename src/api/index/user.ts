@@ -8,7 +8,8 @@ enum URL {
     updateUserInfo = '/myapp/index/user/update',
     captchaurl = '/myapp/index/user/generateCaptcha',
     sendEmailCode = '/myapp/index/user/sendEmailCode', // 添加获取邮箱验证码的 URL
-    qqLogin = '/myapp/index/user/qqLogin' // 添加 QQ 登录的 URL
+    qqLogin = '/myapp/index/user/qq/authorization', // 添加 QQ 登录的 URL
+    oauthCallback = '/myapp/index/user/oauth_callback' // 添加 OAuth 回调的 URL
 }
 interface LoginRes {
     token: string;
@@ -25,8 +26,9 @@ const userLoginApi = async (data: LoginData) => post<any>({ url: URL.userLogin, 
 const userRegisterApi = async (data: any) => post<any>({ url: URL.userRegister, params: {}, data: data });
 const sendEmailCodeApi = async (data: any) => post<any>({ url: URL.sendEmailCode, data: data, headers: { 'Content-Type': 'multipart/form-data;charset=utf-8' } }); // 添加获取邮箱验证码的 API
 const qqLoginApi = async (params: any) => get<any>({ url: URL.qqLogin, params: params, withCredentials: true }); // 添加 QQ 登录的 API
+const oauthCallbackApi = async (params: any) => get<any>({ url: URL.oauthCallback, params: params, withCredentials: true }); // 添加 OAuth 回调的 API
 const updateUserPwdApi = async (params: any, data:any) => post<any>({ url: URL.updateUserPwd, params: params, data:data });
 const updateUserInfoApi = async (params: any,data: any) => post<any>({ url: URL.updateUserInfo, params:params, data: data, headers: { 'Content-Type': 'multipart/form-data;charset=utf-8' } });
 
-export { detailApi, updateUserInfoApi, updateUserPwdApi, userLoginApi, userRegisterApi, sendEmailCodeApi, qqLoginApi }; // 导出 QQ 登录的 API
+export { detailApi, updateUserInfoApi, updateUserPwdApi, userLoginApi, userRegisterApi, sendEmailCodeApi, qqLoginApi, oauthCallbackApi }; // 导出 OAuth 回调的 API
 

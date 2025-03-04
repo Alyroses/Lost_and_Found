@@ -57,6 +57,11 @@ const constantRouterMap = [
         component: () => import('/@/views/index/ditu.vue'),
       },
       {
+        path: 'oauth_callback',
+        name: 'oauth_callback',
+        component: () => import('/@/views/index/oauth_callback.vue'),
+      },
+      {
         path: 'usercenter',
         name: 'usercenter',
         redirect: '/index/usercenter/addressView',

@@ -14,8 +14,7 @@ import { listApi as listThingList } from '/@/api/index/thing';
 import { BASE_URL } from '/@/store/constants';
 import Footer from '/@/views/index/components/footer.vue';
 import Header from '/@/views/index/components/header.vue';
-
-
+import itemIcon from '/src/assets/icons/svg/地图标记.svg'; // 引入自定义图标
 
 export default {
     components: {
@@ -56,6 +55,9 @@ export default {
                         const marker = new window.BMapGL.Marker(centerPoint);
                         this.map.addOverlay(marker);
                         marker.setAnimation(window.BMAP_ANIMATION_BOUNCE); // 设置标记点跳动动画
+
+                        // 添加数据库中的地址标记
+                        this.addMarkers();
                     },
                     (error) => {
                         console.error("获取位置信息失败：", error);
@@ -72,11 +74,17 @@ export default {
             this.map = new window.BMapGL.Map("map");
             this.map.centerAndZoom(defaultPoint, 15);
             this.map.enableScrollWheelZoom(true);
+
+            // 添加数据库中的地址标记
+            this.addMarkers();
         },
         addMarkers() {
+            const iconSize = new window.BMapGL.Size(32, 32); // 图标大小
+            const icon = new window.BMapGL.Icon(itemIcon, iconSize);
+
             this.locations.forEach(location => {
                 const point = new window.BMapGL.Point(location.lng, location.lat);
-                const marker = new window.BMapGL.Marker(point);
+                const marker = new window.BMapGL.Marker(point, { icon: icon });
                 this.map.addOverlay(marker);
                 this.markers.push(marker);
 
