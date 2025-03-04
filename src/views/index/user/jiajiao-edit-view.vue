@@ -34,7 +34,7 @@
           </div>
           <!-- 标题 -->
           <div class="item flex-view">
-            <div class="label">标题</div>
+            <div class="label title-label">标题</div>
             <div class="right-box">
               <input 
                 type="text" 
@@ -107,22 +107,22 @@
               <input 
                 type="number" 
                 v-model="tData.form.price" 
-                placeholder="请输入金额 (最多 15!!! 元)" 
+                placeholder="请输入金额 (最多 15元)" 
                 class="input-dom" 
                 @input="limitPrice"
               >
             </div>
           </div>
-          
-           <!-- 联系人手机号 -->
-           <div class="item flex-view">
+
+          <!-- 联系人手机号 -->
+          <div class="item flex-view">
             <div class="label">联系人手机号</div>
             <div class="right-box">
               <input 
                 type="text" 
                 v-model="tData.form.mobile" 
                 placeholder="请输入手机号" 
-                maxlength="100"
+                maxlength="11"
                 class="input-dom"
               >
             </div>
@@ -180,6 +180,9 @@
 
           <!-- 提交按钮 -->
           <button class="save mg" @click="submit()">发布</button>
+          <p class="form-notice">
+              发布即表示同意《用户服务协议》，我们将在审核通过后展示您的信息
+            </p>
         </div>
       </div>
     </a-spin>
@@ -231,6 +234,7 @@ onMounted(() => {
   getTagDataList()
 })
 
+
 //获取标签
 const getTagDataList = () => {
   listTagApi({}).then((res) => {
@@ -241,12 +245,14 @@ const getTagDataList = () => {
   });
 };
 
+
 const rewardType = ref("points");
 
+// 限制金额
 const limitPrice = () => {
-  if (tData.value.form.price > 20) {
-    tData.value.form.price = 20;
-    message.warn("现金奖励最多 20 元");
+  if (tData.form.price > 15) {
+    tData.form.price = 15;
+    message.warn("现金奖励最多 15 元");
   }
 };
 
@@ -424,8 +430,8 @@ const submit = () => {
   .list-title {
     font-size: 24px;
     color: @primary-color;
-    margin-bottom: 32px;
-    padding-bottom: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 3px;
     border-bottom: 2px solid #eee;
     font-weight: 600;
     font-family: 'FZJZJW', -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
@@ -434,7 +440,7 @@ const submit = () => {
   .dual-column-container {
     display: flex;
     gap: 24px;
-    width: 100%;
+    width: 98%;
 
     .dual-column-item {
       flex: 1;
@@ -494,12 +500,17 @@ const submit = () => {
           height: 150px; // 修改高度为150px
         }
       }
+
+      .title-label {
+        position: relative;
+        top: -14px; // 向上移动15px
+      }
     }
 
     .save {
       width: 100%;
       max-width: 200px;
-      margin: @spacing 0 0 120px;
+      margin: -7px 0 24px 145px;
       padding: 12px;
       background: linear-gradient(135deg, @primary-color, @secondary-color);
       border-radius: @border-radius;
@@ -559,4 +570,20 @@ const submit = () => {
     }
   }
 }
+// 将现金奖励和联系人手机号放在同一行
+.edit-view > .item.flex-view:nth-child(6),
+.edit-view > .item.flex-view:nth-child(7) {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-right: 20px;  // 可根据需求调整间距
+}
+
+// 设置这两项的输入框宽度为 300px
+.edit-view > .item.flex-view:nth-child(6) .right-box .input-dom,
+.edit-view > .item.flex-view:nth-child(7) .right-box .input-dom {
+  width: 300px;
+}
+
+
 </style>

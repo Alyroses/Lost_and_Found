@@ -1,17 +1,15 @@
 <template>
   <div class="footer-view">
     <div class="foot-link-box flex-view">
-      <div class="link-split"></div>
-      <div class="link-split"></div>
-      <a class="foot-link" @click="handleSource">关于我们</a>
+      <a class="foot-link" @click="handleSource">关于我的毕设</a>
     </div>
     <div class="footer-infos">
       <span>
-        <a style="color: rgb(174, 174, 174)">XXX备123456789号</a>
+        <a style="color: #090909">XXX备123456789号</a>
       </span>
-      <span>&nbsp;&nbsp;XXXXXX公网安备123456&nbsp;&nbsp;123456号&nbsp;&nbsp;感谢你的光临</span>
+      <span>&nbsp;&nbsp;张家界学院计算机科学与技术专业三班&nbsp;&nbsp;2021210307&nbsp;&nbsp;十分感谢您的使用</span>
     </div>
-    <div class="address">失物招领平台</div>
+    <div class="address">基于Django的失物招领系统设计与实现项目</div>
   </div>
 </template>
 
@@ -43,9 +41,10 @@
   }
 
   .footer-view {
-    max-width: 1108px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 24px 0 20px 54px;
+    padding: 0px 0 20px 54px;
+    border: 2px solid #000;
 
     .foot-link-box {
       display: -webkit-box;
@@ -59,9 +58,10 @@
       -webkit-box-pack: center;
       -ms-flex-pack: center;
       justify-content: center;
+
       .foot-link {
         margin: 0 16px;
-        color: #2a4f88;
+        color: #090909;
       }
       a {
         background-color: transparent;
@@ -75,7 +75,7 @@
       line-height: 16px;
       font-size: 12px;
       padding-left: 63px;
-      color: #aeaeae;
+      color: #090909;
       margin-top: 16px;
       text-align: center;
     }
@@ -84,8 +84,15 @@
       height: 16px;
       line-height: 16px;
       font-size: 12px;
-      color: #aeaeae;
+      color: #090909;
       margin-top: 8px;
     }
+  }
+
+  .copyright {
+    display: block;
+    width: 100%; // 设置宽度为100%
+    height: 2px;
+    background-color: #000; // 设置为黑色
   }
 </style>

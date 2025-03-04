@@ -93,6 +93,11 @@ const constantRouterMap = [
             component: () => import('/@/views/index/user/jiajiao-edit-view.vue'),
           },
           {
+            path: 'founditemView',
+            name: 'founditemView',
+            component: () => import('/@/views/index/user/found-thing-edit-view.vue'),
+          },
+          {
             path: 'thingEditView',
             name: 'thingEditView',
             component: () => import('/@/views/index/user/thing-edit-view.vue'),

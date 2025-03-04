@@ -23,7 +23,7 @@
       </el-popover>
       <a-button type="link" @click="handlemap()">分布地图</a-button>
       <a-button type="link" @click="handleJoin()">发布失物信息</a-button>
-      <a-button type="link" @click="handleJoin()">发布拾物信息</a-button>
+      <a-button type="link" @click="foundhandel()">发布招领信息</a-button>
 
       <template v-if="userStore.user_token">
         <a-dropdown>
@@ -185,6 +185,7 @@ const onClose = () => {
   msgVisible.value = false;
 };
 
+// 跳转到发布失物信息页面
 const handleJoin = () => {
   let userId = userStore.user_id;
   if (userId) {
@@ -193,7 +194,15 @@ const handleJoin = () => {
     message.warn('请先登录！');
   }
 };
-
+// 跳转到发布招领信息页面
+const foundhandel = () => {
+  let userId = userStore.user_id;
+  if (userId) {
+    router.push({ name: 'founditemView' });
+  } else {
+    message.warn('请先登录！');
+  }
+};
 const handlemap = () => {
   let userId = userStore.user_id;
   if (userId) {
