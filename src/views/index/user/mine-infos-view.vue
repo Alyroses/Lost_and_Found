@@ -32,7 +32,11 @@
         </div>
         <div class="mine-item flex-view" @click="clickMenu('jiajiaoEditView')">
           <img :src="SettingIconImage" alt="发布失物与招领" />
-          <span>发布失物与招领</span>
+          <span>发布失物信息</span>
+        </div>
+        <div class="mine-item flex-view" @click="clickMenu('jiajiaoEditView')">
+          <img :src="SettingIconImage" alt="发布失物与招领" />
+          <span>发布招领信息</span>
         </div>
         <div class="mine-item flex-view" @click="clickMenu('thingEditView')">
           <img :src="SettingIconImage" alt="我的发布" />
@@ -84,9 +88,12 @@ onMounted(() => {
   getWishThingList();
 });
 
-const clickMenu = (name) => {
+const clickMenu = (name: any) => {
   router.push({ name: name });
 };
+// const clickMenu = () => {
+//   router.push({ name: 'jiajiaoEditView' });
+// };
 const getCollectThingList = () => {
   let username = userStore.user_name;
   getCollectThingListApi({ username: username })

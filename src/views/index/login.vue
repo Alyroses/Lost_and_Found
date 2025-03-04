@@ -118,7 +118,7 @@ const get_query_string = (name: string) => {
 };
 
 const loginSuccess = () => {
-  router.push({ name: 'oauth_callback' });
+  router.push({ name: 'portal' });
   message.success('登录成功！');
 };
 </script>

@@ -4,85 +4,188 @@
     <a-spin :spinning="loading" style="min-height: 200px;">
       <div class="list-content">
         <div class="edit-view">
+          <!-- 图片上传部分 -->
           <div class="item flex-view">
             <div class="label">图片</div>
             <div class="right-box avatar-box flex-view">
               <a-col span="24">
                 <a-form-item label="">
-                  <a-upload-dragger name="file" accept="image/*" :multiple="false" :before-upload="beforeUpload"
-                    v-model:file-list="fileList">
+                  <a-upload-dragger 
+                    name="file" 
+                    accept="image/*" 
+                    :multiple="false" 
+                    :before-upload="beforeUpload"
+                    v-model:file-list="fileList"
+                    class="custom-uploader"
+                  >
                     <p class="ant-upload-drag-icon">
                       <template v-if="tData.form.coverUrl">
-                        <img :src="tData.form.form.coverUrl" style="width: 60px; height: 80px" />
+                        <img :src="tData.form.coverUrl" class="preview-image" />
                       </template>
                       <template v-else>
                         <file-image-outlined />
                       </template>
                     </p>
-                    <p class="ant-upload-text"> 请选择要上传的图片 </p>
+                    <p class="ant-upload-text">请选择要上传的图片</p>
                   </a-upload-dragger>
                 </a-form-item>
               </a-col>
             </div>
           </div>
+          <!-- 标题 -->
           <div class="item flex-view">
             <div class="label">标题</div>
             <div class="right-box">
-              <input type="text" v-model="tData.form.title" placeholder="请输入寻物标题" maxlength="20" class="input-dom">
+              <input 
+                type="text" 
+                v-model="tData.form.title" 
+                placeholder="请输入寻物标题" 
+                maxlength="20" 
+                class="input-dom"
+              >
               <p class="tip">支持中英文，长度不能超过 20 个字符</p>
             </div>
           </div>
+
+          <!-- 地区选择 -->
           <div class="item flex-view">
             <div class="label">地区</div>
-            <el-cascader :options="tData.regionDatas" v-model="selectedOptions" placeholder="请选择"
-              @change="handleChange"></el-cascader>
+            <el-cascader 
+              :options="tData.regionDatas" 
+              v-model="selectedOptions" 
+              placeholder="请选择"
+              @change="handleChange"
+              class="region-select"
+            ></el-cascader>
+          </div>
+          
+          <!-- 详细丢失地点 -->
+          <div class="item flex-view">
+            <div class="label">详细丢失地点</div>
+            <div class="right-box">
+              <input 
+                type="text" 
+                v-model="tData.form.detailLocation" 
+                placeholder="请输入详细丢失地点" 
+                maxlength="50" 
+                class="input-dom"
+              >
+            </div>
           </div>
 
+          <!-- 奖励方式 -->
           <div class="item flex-view">
-            <div class="label">奖励</div>
+            <div class="label">奖励方式</div>
             <div class="right-box">
-              <input type="text" v-model="tData.form.price" placeholder="请输入价格" maxlength="100"
-                class="input-dom web-input">
+              <a-radio-group 
+                v-model:value="rewardType"
+                class="reward-radio-group"
+              >
+                <a-radio value="points">积分</a-radio>
+                <a-radio value="cash">金额</a-radio>
+              </a-radio-group>
             </div>
           </div>
-          <div class="item flex-view">
+
+          <!-- 积分奖励 -->
+          <div v-if="rewardType === 'points'" class="item flex-view">
+            <div class="label">积分奖励</div>
+            <div class="right-box">
+              <input 
+                type="number" 
+                v-model="tData.form.points" 
+                placeholder="请输入积分数量" 
+                class="input-dom"
+              >
+            </div>
+          </div>
+
+          <!-- 现金奖励 -->
+          <div v-if="rewardType === 'cash'" class="item flex-view">
+            <div class="label">现金奖励</div>
+            <div class="right-box">
+              <input 
+                type="number" 
+                v-model="tData.form.price" 
+                placeholder="请输入金额 (最多 15!!! 元)" 
+                class="input-dom" 
+                @input="limitPrice"
+              >
+            </div>
+          </div>
+          
+           <!-- 联系人手机号 -->
+           <div class="item flex-view">
             <div class="label">联系人手机号</div>
             <div class="right-box">
-              <input type="text" v-model="tData.form.mobile" placeholder="请输入手机号" maxlength="100"
-                class="input-dom web-input">
+              <input 
+                type="text" 
+                v-model="tData.form.mobile" 
+                placeholder="请输入手机号" 
+                maxlength="100"
+                class="input-dom"
+              >
             </div>
           </div>
-          <div class="item flex-view">
-            <div class="label">物品分类</div>
-            <div class="right-box">
-              <a-select placeholder="请选择" allowClear :options="cData" style="width: 200px;"
-                :field-names="{ label: 'title', value: 'id', }" v-model:value="tData.form.classification">
-              </a-select>
+
+          <!-- 物品分类和标签双列布局 -->
+          <div class="dual-column-container">
+            <!-- 物品分类 -->
+            <div class="item flex-view dual-column-item">
+              <div class="label">物品分类</div>
+              <div class="right-box">
+                <a-select 
+                  placeholder="请选择" 
+                  allowClear 
+                  :options="cData" 
+                  class="classification-select"
+                  :field-names="{ label: 'title', value: 'id' }" 
+                  v-model:value="tData.form.classification"
+                ></a-select>
+              </div>
             </div>
-            <div class="item flex-view">
+
+            <!-- 标签 -->
+            <div class="item flex-view dual-column-item">
               <div class="label">标签</div>
-              <a-select placeholder="请选择" mode="multiple" style="width: 200px;" allowClear
-                v-model:value="tData.form.tag">
-                <template v-for="item in tData.tagData">
-                  <a-select-option :value="item.id">{{ item.title }}</a-select-option>
-                </template>
-              </a-select>
+              <div class="right-box">
+                <a-select 
+                  placeholder="请选择" 
+                  mode="multiple" 
+                  class="tag-select"
+                  allowClear
+                  v-model:value="tData.form.tag"
+                >
+                  <template v-for="item in tData.tagData">
+                    <a-select-option :value="item.id">{{ item.title }}</a-select-option>
+                  </template>
+                </a-select>
+              </div>
             </div>
           </div>
+
+          <!-- 物品描述 -->
           <div class="item flex-view">
             <div class="label">物品描述</div>
             <div class="right-box">
-              <textarea v-model="tData.form.description" placeholder="请输入描述" maxlength="200" class="intro">
-    </textarea>
+              <textarea 
+                v-model="tData.form.description" 
+                placeholder="请输入描述" 
+                maxlength="200" 
+                class="intro"
+              ></textarea>
               <p class="tip">限制200字以内</p>
             </div>
           </div>
+
+          <!-- 提交按钮 -->
           <button class="save mg" @click="submit()">发布</button>
         </div>
       </div>
     </a-spin>
   </div>
 </template>
+
 
 <script setup>
 import { message } from "ant-design-vue";
@@ -138,6 +241,15 @@ const getTagDataList = () => {
   });
 };
 
+const rewardType = ref("points");
+
+const limitPrice = () => {
+  if (tData.value.form.price > 20) {
+    tData.value.form.price = 20;
+    message.warn("现金奖励最多 20 元");
+  }
+};
+
 //获取地点
 const handleChange = () => {
   console.log(selectedOptions.value)
@@ -189,75 +301,7 @@ const getUserThing = () => {
     loading.value = false
   })
 }
-// const submit = () => {
-//   let formData = new FormData()
-//   let userId = userStore.user_id
-//   if (tData.form.avatarFile) {
-//     formData.append('cover', tData.form.avatarFile)
-//   }
-//   if (tData.form.title) {
-//     formData.append('title', tData.form.title)
-//   } else {
-//     message.warn("寻物标题不能为空")
-//     return
-//   }
-//   if (tData.form.classification) {
-//     formData.append('classification', tData.form.classification)
-//   }
-//   if (tData.form.tag) {
-//     tData.form.tag.forEach(function (value) {
-//       if (value) {
-//         formData.append('tag', value);
-//       }
-//     });
-//   }
 
-//   if (tData.form.mobile) {
-//     formData.append('mobile', tData.form.mobile)
-//   } else {
-//     message.warn("手机号不能为空")
-//     return
-//   }
-//   if (tData.form.location) {
-//     formData.append('location', tData.form.location)
-//   } else {
-//     message.warn("地区不能为空")
-//     return
-//   }
-//   if (tData.form.price) {
-//     formData.append('price', tData.form.price)
-//   } else {
-//     message.warn("奖励不能为空")
-//     return
-//   }
-//   if (tData.form.description) {
-//     formData.append('description', tData.form.description)
-//   } else {
-//     message.warn("介绍不能为空")
-//     return
-//   }
-//   formData.append('user', userId)
-//   formData.append('status', '1')
-
-//   if (tData.form.id) {
-//     updateApi({
-//       id: tData.form.id
-//     }, formData).then(res => {
-//       message.success('保存成功，后台审核中')
-//       // getUserThing()
-//     }).catch(err => {
-//       console.log(err)
-//     })
-//   } else {
-//     createApi(formData).then(res => {
-//       message.success('保存成功，后台审核中')
-//       // getUserThing()
-//     }).catch(err => {
-//       console.log(err)
-//     })
-//   }
-
-// }
 const submit = () => {
   let formData = new FormData()
   let userId = userStore.user_id
@@ -347,148 +391,161 @@ const submit = () => {
     }
   }, { enableHighAccuracy: true })
 }
-
 </script>
 
 <style scoped lang="less">
-input,
-textarea {
-  border-style: none;
-  outline: none;
-  margin: 0;
-  padding: 0;
-}
+@primary-color: #4684e2;
+@secondary-color: #6a8ee6;
+@background-color: #f8fafb;
+@border-color: #e0e4e8;
+@text-color: #152844;
+@error-color: #ff4d4f;
 
-.flex-view {
-  display: -webkit-box;
-  display: -ms-flexbox;
-  display: flex;
-}
+@border-radius: 8px;
+@input-height: 40px;
+@spacing: 24px;
 
 .content-list {
-  -webkit-box-flex: 1;
-  -ms-flex: 1;
-  flex: 1;
+  width: 90%;
+  max-width: 1200px;
+  min-width: 800px;
+  margin: 0 auto;
+  padding: @spacing;
+  background: #fff;
+  border-radius: @border-radius;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: width 0.3s;
 
   .list-title {
-    color: #152844;
+    font-size: 24px;
+    color: @primary-color;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #eee;
     font-weight: 600;
-    font-size: 18px;
-    line-height: 48px;
-    height: 48px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid #cedce4;
+  }
+
+  .dual-column-container {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+
+    .dual-column-item {
+      flex: 1;
+      min-width: 300px;
+      margin-bottom: @spacing;
+
+      .label {
+        width: 80px;
+      }
+
+      .right-box {
+        :deep(.ant-select) {
+          width: 100% !important;
+        }
+      }
+    }
   }
 
   .edit-view {
     .item {
-      -webkit-box-align: center;
-      -ms-flex-align: center;
+      display: flex;
       align-items: center;
-      margin: 24px 0;
+      margin-bottom: @spacing;
+      gap: 20px;
 
       .label {
-        width: 100px;
-        color: #152844;
-        font-weight: 600;
+        width: 120px;
+        font-weight: 500;
+        color: @text-color;
         font-size: 14px;
+        flex-shrink: 0;
       }
 
       .right-box {
-        -webkit-box-flex: 1;
-        -ms-flex: 1;
         flex: 1;
-      }
-
-      .avatar {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        margin-right: 16px;
-      }
-
-      .change-tips {
-        -webkit-box-align: center;
-        -ms-flex-align: center;
-        align-items: center;
-        -ms-flex-wrap: wrap;
-        flex-wrap: wrap;
-      }
-
-      label {
-        color: #4684e2;
-        font-size: 14px;
-        line-height: 22px;
-        height: 22px;
-        cursor: pointer;
-        width: 100px;
-        display: block;
-      }
-
-      .tip {
-        color: #6f6f6f;
-        font-size: 14px;
-        height: 22px;
-        line-height: 22px;
-        margin: 0;
         width: 100%;
-      }
 
-      .right-box {
-        -webkit-box-flex: 1;
-        -ms-flex: 1;
-        flex: 1;
-      }
+        .input-dom, 
+        .intro, 
+        :deep(.ant-select-selector), 
+        :deep(.ant-input) {
+          width: 100%;
+          padding: 8px 12px;
+          border: 1px solid @border-color;
+          border-radius: @border-radius;
+          transition: all 0.3s;
+          background: @background-color;
+          height: @input-height;
 
-      .input-dom {
-        width: 400px;
-      }
-
-      .input-dom {
-        background: #f8fafb;
-        border-radius: 4px;
-        height: 40px;
-        line-height: 40px;
-        font-size: 14px;
-        color: #152844;
-        padding: 0 12px;
-      }
-
-      .tip {
-        font-size: 12px;
-        line-height: 16px;
-        color: #6f6f6f;
-        height: 16px;
-        margin-top: 4px;
-      }
-
-      .intro {
-        resize: none;
-        background: #f8fafb;
-        width: 100%;
-        padding: 8px 12px;
-        height: 82px;
-        line-height: 22px;
-        font-size: 14px;
-        color: #152844;
+          &:focus {
+            border-color: @primary-color;
+            box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+          }
+        }
       }
     }
 
     .save {
-      background: #4684e2;
-      border-radius: 32px;
-      width: 96px;
-      height: 32px;
-      line-height: 32px;
-      font-size: 14px;
+      width: 100%;
+      max-width: 200px;
+      margin: @spacing 0 0 120px;
+      padding: 12px;
+      background: linear-gradient(135deg, @primary-color, @secondary-color);
+      border-radius: @border-radius;
       color: #fff;
+      font-weight: 500;
+      transition: all 0.3s;
       border: none;
-      outline: none;
       cursor: pointer;
+
+      &:hover {
+        opacity: 0.9;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px fade(@primary-color, 30%);
+      }
+    }
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 992px) {
+  .content-list {
+    width: 95%;
+    min-width: unset;
+    padding: 16px;
+
+    .dual-column-container {
+      flex-direction: column;
+
+      .dual-column-item {
+        width: 100%;
+        min-width: unset;
+      }
     }
 
-    .mg {
-      margin-left: 100px;
+    .edit-view .save {
+      margin-left: 0;
+      max-width: 100%;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .content-list {
+    width: 100%;
+    border-radius: 0;
+
+    .edit-view {
+      .item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+
+        .label {
+          width: 100%;
+        }
+      }
     }
   }
 }
