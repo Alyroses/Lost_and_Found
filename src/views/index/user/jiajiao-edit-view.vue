@@ -394,7 +394,12 @@ const submit = () => {
 </script>
 
 <style scoped lang="less">
-@primary-color: #4684e2;
+@font-face {
+  font-family: 'FZJZJW';
+  src: url('/src/assets/fonts/FZJZJW.TTF') format('truetype');
+}
+
+@primary-color: #ee8131;
 @secondary-color: #6a8ee6;
 @background-color: #f8fafb;
 @border-color: #e0e4e8;
@@ -406,12 +411,12 @@ const submit = () => {
 @spacing: 24px;
 
 .content-list {
-  width: 90%;
+  width: 104%;
   max-width: 1200px;
-  min-width: 800px;
+  min-width: 931px;
   margin: 0 auto;
   padding: @spacing;
-  background: #fff;
+  background: #fff0f0af;
   border-radius: @border-radius;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   transition: width 0.3s;
@@ -423,6 +428,7 @@ const submit = () => {
     padding-bottom: 16px;
     border-bottom: 2px solid #eee;
     font-weight: 600;
+    font-family: 'FZJZJW', -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
   }
 
   .dual-column-container {
@@ -458,7 +464,7 @@ const submit = () => {
         width: 120px;
         font-weight: 500;
         color: @text-color;
-        font-size: 14px;
+        font-size: 15px;
         flex-shrink: 0;
       }
 
@@ -482,6 +488,10 @@ const submit = () => {
             border-color: @primary-color;
             box-shadow: 0 0 0 2px fade(@primary-color, 20%);
           }
+        }
+
+        .intro {
+          height: 150px; // 修改高度为150px
         }
       }
     }

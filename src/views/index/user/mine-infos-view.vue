@@ -127,6 +127,7 @@ const getWishThingList = () => {
   margin-right: 20px;
   border: 1px solid #cedce4;
   height: fit-content;
+  // background: #fcbb9be8;
 
   .info-box {
     -webkit-box-align: center;
