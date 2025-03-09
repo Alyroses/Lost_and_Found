@@ -112,7 +112,7 @@ import { BASE_URL } from '/@/store/constants';
 </script>
 <style scoped lang="less">
   .content-margin {
-    margin: 156px 0 100px;
+    margin: 141px 0 100px;
   }
 
   .page-view {
@@ -122,13 +122,14 @@ import { BASE_URL } from '/@/store/constants';
   }
 
   .search-name-box {
-    background: #f5f9fb;
-    height: 100px;
+    background: #ecf4f491;
+    height: 82px;
     line-height: 100px;
-    font-size: 20px;
-    color: #152844;
+    font-size: 36px;
+    color: #d71313;
     text-align: center;
     position: fixed;
+    font-family: 'FZJZJW', -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
     top: 56px;
     left: 0;
     z-index: 1;
@@ -142,12 +143,12 @@ import { BASE_URL } from '/@/store/constants';
 
     .tab-text {
       float: left;
-      color: #5f77a6;
-      font-size: 14px;
+      color: #7ef864;
+      font-size: 20px;
     }
 
     .strong {
-      color: #152844;
+      color: #f01212;
       font-weight: 600;
       margin: 0 4px;
     }

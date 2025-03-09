@@ -14,5 +14,9 @@ import zhCN from 'ant-design-vue/es/locale/zh_CN';
   #app {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
   height: 100vh;
+  background-image: url('/bg_main.jpg'); 
+  background-size: cover;
+  background-position: center;
+  opacity: 0.8; 
 }
 </style>

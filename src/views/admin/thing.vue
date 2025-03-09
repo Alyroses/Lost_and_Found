@@ -447,7 +447,7 @@ const hideModal = () => {
 <style scoped lang="less">
 .page-view {
   min-height: 100%;
-  background: #fff;
+  background: #f6222238;
   padding: 24px;
   display: flex;
   flex-direction: column;

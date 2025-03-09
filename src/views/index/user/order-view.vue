@@ -11,7 +11,7 @@
         <div class="order-item-view" v-for="(item, index) in orderData" :key="index">
           <div class="header flex-view">
             <div class="left">
-              <span class="text">订单号</span>
+              <span class="text">物品单号</span>
               <span class="num mg-4">#</span>
               <span class="num">{{ item.order_number }}</span>
               <span class="time">{{ item.order_time }}</span>
@@ -49,13 +49,13 @@
           <div class="bottom flex-view">
             <div class="left">
               <span class="text">共{{ item.count }}件</span>
-              <span class="open" @click="handleDetail(item.thing)">商品详情</span>
+              <span class="open" @click="handleDetail(item.thing)">物品详情</span>
             </div>
             <div class="right flex-view">
               <span class="text">总计</span>
               <span class="num">¥ {{ item.price * item.count }}</span>
-              <span class="text">优惠</span>
-              <span class="num">¥0</span>
+              <!-- <span class="text">优惠</span>
+              <span class="num">¥0</span> -->
               <span class="text">现场支付</span>
               <span class="money">¥ {{ item.price * item.count }}</span>
             </div>

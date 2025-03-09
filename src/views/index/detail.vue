@@ -576,7 +576,7 @@ const sortCommentList = (sortType) => {
     }
 
     span {
-      font-size: 14px;
+      font-size: 18px;
       color: #152844;
     }
   }
@@ -594,7 +594,7 @@ const sortCommentList = (sortType) => {
   .translators,
   .authors {
     line-height: 18px;
-    font-size: 14px;
+    font-size: 16px;
     margin: 8px 0;
     -webkit-box-align: start;
     -ms-flex-align: start;
@@ -743,7 +743,7 @@ const sortCommentList = (sortType) => {
 
   .text {
     color: #484848;
-    font-size: 16px;
+    font-size: 17px;
     line-height: 26px;
     padding-left: 12px;
     margin: 11px 0;
@@ -769,7 +769,7 @@ const sortCommentList = (sortType) => {
     margin-right: 20px;
     cursor: pointer;
     color: #5f77a6;
-    font-size: 16px;
+    font-size: 21px;
     cursor: pointer;
   }
 
@@ -865,7 +865,7 @@ const sortCommentList = (sortType) => {
 
         .translators {
           color: #6f6f6f;
-          font-size: 12px;
+          font-size: 16px;
           line-height: 14px;
           margin-top: 4px;
           overflow: hidden;

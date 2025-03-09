@@ -436,6 +436,7 @@ const hideModal = () => {
     padding: 24px;
     display: flex;
     flex-direction: column;
+    width: 126%;
 }
 
 .table-operations {

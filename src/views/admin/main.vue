@@ -1,9 +1,9 @@
 <template>
   <a-layout id="components-layout-demo-custom-trigger">
-    <a-layout-header style="background: #fff; padding: 0">
+    <a-layout-header style="background: #ae507836; padding: 0">
       <div class="header">
         <img class="header-logo" :src="logo" />
-        <span class="header-title">失物招领后台管理系统</span>
+        <span class="header-title" style="color:rgba(218, 59, 59, 0.85);">失物招领后台管理系统</span>
         <div class="empty"></div>
         <a-button style="margin-right: 24px" @click="handlePreview">前台预览</a-button>
         <span>管理员[{{ userStore.admin_user_name }}]</span>
@@ -178,7 +178,7 @@ import { useUserStore } from '/@/store';
 
   :deep(.ant-layout-sider) {
     padding: 16px 0;
-    background-color: #f0f2f5;
+    background-color:#b5e67938;
   }
 
   :deep(.ant-menu) {

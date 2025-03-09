@@ -15,6 +15,16 @@
             v-for="item in contentData.tagData" :key="item.id" @click="clickTag(item.id)">{{ item.title }}</span>
         </div>
       </div>
+      <div class="left-search-item">
+        <h4>位置联级查询</h4>
+        <el-cascader 
+          :options="regionOptions" 
+          v-model="selectedRegion" 
+          placeholder="请选择"
+          @change="handleRegionChange"
+          class="region-select"
+        ></el-cascader>
+      </div>
     </div>
     <div class="content-right">
       <div class="top-select-view flex-view">
@@ -65,6 +75,7 @@ import { listApi as listTagList } from '/@/api/index/tag';
 import { createSkimApi, listApi as listThingList } from '/@/api/index/thing';
 import { useUserStore } from '/@/store';
 import { BASE_URL } from '/@/store/constants';
+import { regionData } from 'element-china-area-data'; // 导入地区数据
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -97,6 +108,13 @@ const notices = reactive([
   { title: '公告1', content: '这是公告内容1' },
   { title: '公告2', content: '这是公告内容2' },
   // 可以添加更多公告
+]);
+
+const selectedRegion = ref([]); // 选中的地区
+
+const regionOptions = ref([
+  { value: 'all', label: '全部' },
+  ...regionData
 ]);
 
 onMounted(() => {
@@ -159,12 +177,10 @@ const handleDetail = (item) => {
   contentData.form.user = userid;
   contentData.form.thing = thingid;
 
-
   createSkimApi(contentData.form).then((res) => {
     console.log("ok")
   }).catch((err) => {
   });
-
 
   let text = router.resolve({ name: 'detail', query: { id: item.id } });
   window.open(text.href, '_blank');
@@ -196,6 +212,16 @@ const getThingList = (data) => {
       contentData.loading = false;
     });
 };
+
+const handleRegionChange = (value) => {
+  if (value.includes('all')) {
+    getThingList({});
+  } else {
+    // 根据选中的地区进行筛选
+    const regionString = value.join('/'); // 将数组转为 "省/市/区" 格式
+    getThingList({ region: regionString });
+  }
+};
 </script>
 
 <style scoped lang="less">
@@ -204,10 +230,10 @@ const getThingList = (data) => {
   flex-direction: row;
   width: 93%;
   margin: 56px auto;
-  background-image: url('/bg_main.jpg'); // 使用根路径引用 public 目录中的文件
-  background-size: cover;
-  background-position: center;
-  opacity: 0.8; // 设置透明度
+  // background-image: url('/bg_main.jpg'); // 使用根路径引用 public 目录中的文件
+  // background-size: cover;
+  // background-position: center;
+  // opacity: 0.8; // 设置透明度
 }
 
 .content-left {

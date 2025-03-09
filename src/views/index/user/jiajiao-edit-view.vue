@@ -94,6 +94,7 @@
               <input 
                 type="number" 
                 v-model="tData.form.points" 
+                min="0" 
                 placeholder="请输入积分数量" 
                 class="input-dom"
               >
@@ -107,6 +108,7 @@
               <input 
                 type="number" 
                 v-model="tData.form.price" 
+                min="0" 
                 placeholder="请输入金额 (最多 15元)" 
                 class="input-dom" 
                 @input="limitPrice"
@@ -201,8 +203,6 @@ import { BASE_URL } from "/@/store/constants";
 const router = useRouter();
 const userStore = useUserStore();
 
-
-
 const selectedOptions = ref([])
 
 let loading = ref(false)
@@ -214,6 +214,7 @@ const tData = reactive({
     avatarFile: undefined,
     title: undefined,
     price: undefined,
+    points: undefined, // 新增积分奖励字段
     tag: [],
     mobile: undefined,
     location: undefined,
@@ -222,7 +223,6 @@ const tData = reactive({
     classification: undefined,
     longitude: undefined,
     latitude: undefined,
-
   }
 })
 
@@ -234,7 +234,6 @@ onMounted(() => {
   getTagDataList()
 })
 
-
 //获取标签
 const getTagDataList = () => {
   listTagApi({}).then((res) => {
@@ -244,7 +243,6 @@ const getTagDataList = () => {
     tData.tagData = res.data;
   });
 };
-
 
 const rewardType = ref("points");
 
@@ -270,10 +268,8 @@ const handleChange = () => {
       codeToText[selectedOptions.value[1]] +
       '/' +
       codeToText[selectedOptions.value[2]]
-
   }
 }
-
 
 const beforeUpload = (file) => {
   // 改文件名
@@ -344,12 +340,22 @@ const submit = () => {
     message.warn("地区不能为空")
     return
   }
-  if (tData.form.price) {
+  
+  // 根据奖励方式判断并添加对应的参数
+  if (rewardType.value === "points") {
+    if (tData.form.points === undefined || tData.form.points === null || tData.form.points < 0) {
+      message.warn("积分奖励不能为空且不能为负数")
+      return
+    }
+    formData.append('points', tData.form.points)
+  } else if (rewardType.value === "cash") {
+    if (tData.form.price === undefined || tData.form.price === null || tData.form.price < 0) {
+      message.warn("现金奖励不能为空且不能为负数")
+      return
+    }
     formData.append('price', tData.form.price)
-  } else {
-    message.warn("奖励不能为空")
-    return
   }
+
   if (tData.form.description) {
     formData.append('description', tData.form.description)
   } else {
@@ -369,25 +375,22 @@ const submit = () => {
       let longitude = r.point.lng
       let latitude = r.point.lat
       // 格式化经纬度，保留小数点后5位
-      longitude = parseFloat(longitude.toFixed(5));
-      latitude = parseFloat(latitude.toFixed(5));
+      longitude = parseFloat(longitude.toFixed(5))
+      latitude = parseFloat(latitude.toFixed(5))
       console.log(longitude)
       console.log(latitude)
       formData.append('longitude', longitude)
       formData.append('latitude', latitude)
 
-
       if (tData.form.id) {
         updateApi({ id: tData.form.id }, formData).then(res => {
           message.success('保存成功，后台审核中')
-          // getUserThing()
         }).catch(err => {
           console.log(err)
         })
       } else {
         createApi(formData).then(res => {
           message.success('保存成功，后台审核中')
-          // getUserThing()
         }).catch(err => {
           console.log(err)
         })

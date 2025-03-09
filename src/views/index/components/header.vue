@@ -97,6 +97,10 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
+import { watch } from 'vue';
+import { useRoute } from 'vue-router';
+
+
 // 页面数据
 const data = reactive({
   scoreData: [],
@@ -162,13 +166,13 @@ const getUserList = () => {
 
 const search = () => {
   const keyword = keywordRef.value.value;
-  if (route.name === 'search') {
-    router.push({ name: 'search', query: { keyword: keyword } });
-  } else {
-    let text = router.resolve({ name: 'search', query: { keyword: keyword } });
-    window.open(text.href, '_blank');
-  }
+  // 统一使用路由跳转（带查询参数）
+  router.push({
+    name: 'search',
+    query: { keyword: keyword }
+  });
 };
+
 const goLogin = () => {
   router.push({ name: 'login' });
 };

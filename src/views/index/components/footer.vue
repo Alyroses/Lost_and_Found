@@ -1,4 +1,5 @@
 <template>
+  <div class ="line-border"></div>
   <div class="footer-view">
     <div class="foot-link-box flex-view">
       <a class="foot-link" @click="handleSource">关于我的毕设</a>
@@ -44,7 +45,7 @@
     max-width: 100%;
     margin: 0 auto;
     padding: 0px 0 20px 54px;
-    border: 2px solid #000;
+    // border: 2px solid #000;
 
     .foot-link-box {
       display: -webkit-box;
@@ -94,5 +95,9 @@
     width: 100%; // 设置宽度为100%
     height: 2px;
     background-color: #000; // 设置为黑色
+  }
+  .line-border{
+    border: 1px solid #bfb7b7e5;
+    width: 100%;
   }
 </style>
