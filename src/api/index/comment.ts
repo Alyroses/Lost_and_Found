@@ -5,6 +5,7 @@ enum URL {
   listThingComments = '/myapp/index/comment/list',
   listUserComments = '/myapp/index/comment/listMyComments',
   like = '/myapp/index/comment/like',
+  deleteCommentsApi = '/myapp/index/comment/delete', // 添加删除评论的 URL
 }
 
 const createApi = async (data: any) =>
@@ -17,5 +18,6 @@ const createApi = async (data: any) =>
 const listThingCommentsApi = async (params: any) => get<any>({ url: URL.listThingComments, params: params, data: {}, headers: {} });
 const listUserCommentsApi = async (params: any) => get<any>({ url: URL.listUserComments, params: params, data: {}, headers: {} });
 const likeApi = async (params: any) => post<any>({ url: URL.like, params: params, headers: {} });
+const deleteCommentsApi = async (params: any) => post<any>({ url: URL.deleteCommentsApi, params: params, headers: {} }); // 添加删除评论的 API
 
-export { createApi, listThingCommentsApi, listUserCommentsApi, likeApi };
+export { createApi, listThingCommentsApi, listUserCommentsApi, likeApi, deleteCommentsApi };

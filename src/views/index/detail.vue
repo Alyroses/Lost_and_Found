@@ -18,7 +18,7 @@
                 <h1 class="thing-name">{{ detailData.title }}</h1>
                 <span>
                   <span class="a-price-symbol"></span>
-                  <span class="a-price" style="font-size: 20px">奖励：{{ detailData.price }}元</span>
+                  <span class="a-price" style="font-size: 20px">积分奖励：{{ detailData.price }} 积分</span>
                 </span>
                 <div class="translators flex-view" style="">
                   <span>物品类别：</span>
@@ -109,16 +109,17 @@
                 </div>
               </div>
               <div class="comments-list">
-                <div class="comment-item" v-for="item in commentData">
+                <div class="comment-item" v-for="item in commentData" :key="item.id">
                   <div class="flex-item flex-view">
                     <img :src="AvatarIcon" class="avator" />
                     <div class="person">
-                      <div class="name">{{ item.username }}</div>
+                      <div class="name">{{ item.nickname }}</div> <!-- 修改为显示 nickname -->
                       <div class="time">{{ item.comment_time }}</div>
                     </div>
                     <div class="float-right">
                       <span @click="like(item.id)">推荐</span>
                       <span class="num">{{ item.like_count }}</span>
+                      <img src="/src/assets/icons/svg/delete.svg" @click="deleteComment(item.id)" class="delete-icon" /> <!-- 添加删除图标 -->
                     </div>
                   </div>
                   <p class="comment-content">{{ item.content }}</p>
@@ -146,6 +147,7 @@
                     <span class="a-price">地点：{{ item.location }}</span><br>
                     <span class="a-price">奖励：{{ item.price }}元</span>
                   </span>
+                  <img src="/src/assets/icons/svg/delete.svg" @click="deleteRecommend(item.id)" class="delete-icon" /> <!-- 添加删除图标 -->
                 </div>
               </div>
             </div>
@@ -184,7 +186,7 @@
 import { FormInstance, message } from 'ant-design-vue';
 import { useRoute, useRouter } from 'vue-router/dist/vue-router';
 import { createApi, updateApi } from '/@/api/admin/notice';
-import { createApi as createCommentApi, likeApi, listThingCommentsApi } from '/@/api/index/comment';
+import { createApi as createCommentApi, likeApi, listThingCommentsApi, deleteCommentsApi } from '/@/api/index/comment';
 import { createApi as orderCreat } from '/@/api/index/order';
 import { addCollectUserApi, addScoreApi, addWishUserApi, detailApi, listApi as listThingList } from '/@/api/index/thing';
 import AvatarIcon from '/@/assets/images/avatar.jpg';
@@ -232,8 +234,6 @@ const modal = reactive({
     title: [{ required: true, message: '请输入', trigger: 'change' }],
   },
 });
-
-
 
 const handleAdd = () => {
   resetModal();
@@ -304,8 +304,6 @@ const resetModal = () => {
 const hideModal = () => {
   modal.visile = false;
 };
-
-
 
 onMounted(() => {
   thingId.value = route.query.id.trim();
@@ -412,8 +410,7 @@ const getRecommendThing = () => {
 };
 const handleDetail = (item) => {
   // 跳转新页面
-  let text = router.resolve({ name: 'detail', query: { id: item.id } });
-  window.open(text.href, '_blank');
+  router.push({ name: 'detail', query: { id: item.id } });
 };
 const sendComment = () => {
   console.log(commentRef.value);
@@ -438,7 +435,6 @@ const sendComment = () => {
   }
 };
 
-
 const like = (commentId) => {
   likeApi({ commentId: commentId })
     .then((res) => {
@@ -448,6 +444,19 @@ const like = (commentId) => {
       console.log(err);
     });
 };
+
+const deleteComment = (commentId) => {
+  deleteCommentApi({ commentId: commentId })
+    .then((res) => {
+      message.success('删除成功');
+      getCommentList();
+    })
+    .catch((err) => {
+      console.log(err);
+      message.error('删除失败');
+    });
+};
+
 const getCommentList = () => {
   listThingCommentsApi({ thingId: thingId.value, order: order.value })
     .then((res) => {
@@ -586,7 +595,7 @@ const sortCommentList = (sortType) => {
     margin: 16px 0;
     color: #0f1111 !important;
     font-weight: 400 !important;
-    font-style: normal !important;
+    font-style: normal !重要;
     text-transform: none !important;
     text-decoration: none !important;
   }
@@ -1065,5 +1074,10 @@ const sortCommentList = (sortType) => {
 .a-price {
   color: #0f1111;
   font-size: 12px;
+}
+.delete-icon{
+  width: 22px;
+  height: 15px;
+  margin-bottom: 4px;
 }
 </style>

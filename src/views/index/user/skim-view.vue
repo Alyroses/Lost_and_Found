@@ -11,7 +11,7 @@
                             <span>
                                 <span class="a-price-symbol"></span>
                                 <span class="a-price">地点：{{ item.location }}</span><br>
-                                <span class="a-price">奖励：{{ item.price }}元</span>
+                                <span class="a-price">积分奖励：{{ item.price }}积分</span>
                             </span>
                         </div>
                     </div>

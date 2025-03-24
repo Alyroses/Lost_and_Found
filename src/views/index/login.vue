@@ -123,11 +123,17 @@ const loginSuccess = () => {
 };
 </script>
 <style scoped lang="less">
+@font-face {
+  font-family: 'FZJZJW';
+  src: url('/src/assets/fonts/FZJZJW.TTF') format('truetype');
+}
+
 div {
   display: block;
 }
 
 .container {
+  font-family: 'FZJZJW', sans-serif; // 确保应用字体到容器
   //background-color: #f1f1f1;
   background-image: url('../images/login-background.jpg'); // 使用 @ 符号表示 src 目录
   background-size: cover;

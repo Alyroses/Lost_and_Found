@@ -19,7 +19,7 @@
                 <span>
                   <span class="a-price-symbol"></span>
                   <span class="a-price">地点：{{ item.location }}</span><br>
-                  <span class="a-price">奖励：{{ item.price }}元</span>  
+                  <span class="a-price">积分奖励：{{ item.price }} 积分</span>  
                 </span>
               </div>
             </div>
@@ -129,7 +129,7 @@ import { BASE_URL } from '/@/store/constants';
     color: #d71313;
     text-align: center;
     position: fixed;
-    font-family: 'FZJZJW', -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-family: '方正剪纸简体';
     top: 56px;
     left: 0;
     z-index: 1;

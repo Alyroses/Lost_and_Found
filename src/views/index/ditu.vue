@@ -1,164 +1,460 @@
 <template>
-    <div class="ditu">
+    <div class="map-page">
         <Header />
-        <div class="map-container">
-            <div id="map"></div>
+        <div class="control-panel">
+            <div class="location-info" v-if="currentAddress">
+                <span class="address-tag">📍 当前定位：</span>
+                <span class="address-text">{{ currentAddress }}</span>
+            </div>
+            <div class="control-buttons">
+                <button @click="refreshLocation" class="btn primary">重新定位</button>
+                <button @click="getMapCenter" class="btn">获取中心点</button>
+                <div class="zoom-control">
+                    <input v-model.number="zoomLevel" type="number" min="4" max="20" 
+                           class="zoom-input" @keyup.enter="setNewZoom" />
+                    <button @click="setNewZoom" class="btn">设置级别</button>
+                </div>
+                <button @click="zoomIn" class="btn">放大</button>
+                <button @click="zoomOut" class="btn">缩小</button>
+            </div>
         </div>
+        <div id="map-container" ref="mapContainer" class="map-container"></div>
         <Footer />
     </div>
-
 </template>
 
 <script>
 import { listApi as listThingList } from '/@/api/index/thing';
-import { BASE_URL } from '/@/store/constants';
-import Footer from '/@/views/index/components/footer.vue';
 import Header from '/@/views/index/components/header.vue';
-import itemIcon from '/src/assets/icons/svg/地图标记.svg'; // 引入自定义图标
+import Footer from '/@/views/index/components/footer.vue';
+import markerIcon from '/src/assets/icons/svg/地图标记.svg';
+
+const DEFAULT_CENTER = { lng: 113.86689, lat: 39.915 };
 
 export default {
-    components: {
-        Footer,
-        Header,
-    },
-    mounted() {
-        this.loadBaiduMap();
-        this.getThingList();
-    },
-    methods: {
-        loadBaiduMap() {
-            if (typeof window.BMapGL !== "undefined") {
-                this.initMap();
-            } else {
-                const checkBMapGL = setInterval(() => {
-                    if (typeof window.BMapGL !== "undefined") {
-                        clearInterval(checkBMapGL);
-                        this.initMap();
-                    }
-                }, 100);
-            }
-        },
-        initMap() {
-            // 获取用户当前位置并设置为地图中心点
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const latitude = position.coords.latitude;
-                        const longitude = position.coords.longitude;
-                        const centerPoint = new window.BMapGL.Point(longitude, latitude); // 使用当前位置
-
-                        this.map = new window.BMapGL.Map("map");
-                        this.map.centerAndZoom(centerPoint, 15); // 设置地图中心点为当前位置
-                        this.map.enableScrollWheelZoom(true); // 启用滚轮缩放
-
-                        // 添加当前位置标记
-                        const marker = new window.BMapGL.Marker(centerPoint);
-                        this.map.addOverlay(marker);
-                        marker.setAnimation(window.BMAP_ANIMATION_BOUNCE); // 设置标记点跳动动画
-
-                        // 添加数据库中的地址标记
-                        this.addMarkers();
-                    },
-                    (error) => {
-                        console.error("获取位置信息失败：", error);
-                        this.setDefaultCenter(); // 如果获取当前位置失败，则使用默认中心点
-                    }
-                );
-            } else {
-                alert("浏览器不支持地理位置功能");
-                this.setDefaultCenter(); // 如果浏览器不支持定位，使用默认中心点
-            }
-        },
-        setDefaultCenter() {
-            const defaultPoint = new window.BMapGL.Point(116.404, 39.915); // 默认中心点（北京）
-            this.map = new window.BMapGL.Map("map");
-            this.map.centerAndZoom(defaultPoint, 15);
-            this.map.enableScrollWheelZoom(true);
-
-            // 添加数据库中的地址标记
-            this.addMarkers();
-        },
-        addMarkers() {
-            const iconSize = new window.BMapGL.Size(32, 32); // 图标大小
-            const icon = new window.BMapGL.Icon(itemIcon, iconSize);
-
-            this.locations.forEach(location => {
-                const point = new window.BMapGL.Point(location.lng, location.lat);
-                const marker = new window.BMapGL.Marker(point, { icon: icon });
-                this.map.addOverlay(marker);
-                this.markers.push(marker);
-
-                // 点击标记点时显示自定义信息
-                marker.addEventListener('click', () => {
-                    const infoWindow = new window.BMapGL.InfoWindow(location.info, {
-                        width: 200,
-                        height: 100,
-                        title: "物品信息详情",
-                    });
-                    this.map.openInfoWindow(infoWindow, point); // 在点击的标记点打开信息窗口
-                });
-            });
-        },
-        getThingList() {
-            listThingList()
-                .then((res) => {
-                    res.data.forEach((item) => {
-                        if (item.cover) {
-                            item.cover = BASE_URL + item.cover;
-                        }
-                    });
-                    console.log(res);
-                    this.thingData = res.data;
-                    console.log(this.thingData)
-
-                    // 构建 locations 数组
-                    this.locations = this.thingData.map(item => {
-                        return {
-                            lat: item.latitude,
-                            lng: item.longitude,
-                            info: `标题：${item.title} <br>
-                            地点：${item.location}` // 组合 title 和 location
-                        };
-                    });
-
-                    // 添加标记到地图上
-                    this.addMarkers();
-
-                })
-                .catch((err) => {
-                    console.log(err);
-                });
-        },
-    },
+    components: { Footer, Header },
     data() {
         return {
             map: null,
             markers: [],
             thingData: [],
-            locations: [],
+            zoomLevel: 17,
+            currentAddress: '',
+            geocoder: null,
+            locationMarker: null,
+            isLocating: false,
+            locationDetail: null
         };
     },
+    mounted() {
+        this.$nextTick(this.initMap);
+    },
+    methods: {
+        async initMap() {
+            try {
+                if (!window.BMapGL) await this.loadBaiduMapSDK();
+                this.createMapInstance();
+                this.initGeocoder();
+                await this.getThingList();
+                await this.startLocationFlow();
+            } catch (error) {
+                console.error('地图初始化失败:', error);
+                this.$alert('地图加载失败，请刷新页面重试');
+            }
+        },
+
+        loadBaiduMapSDK() {
+            return new Promise((resolve, reject) => {
+                if (window.BMapGL) return resolve();
+
+                const script = document.createElement('script');
+                script.src = "https://api.map.baidu.com/api?type=webgl&v=1.0&ak=iPOXvqEzgVCNdQOmHwudK3jmLdvjFPAo";
+                script.onload = () => {
+                    if (!window.BMapGL?.Geocoder) {
+                        reject(new Error('地图API加载不完整'));
+                        return;
+                    }
+                    resolve();
+                };
+                script.onerror = reject;
+                document.body.appendChild(script);
+            });
+        },
+
+        createMapInstance() {
+            try {
+                this.map = new BMapGL.Map('map-container', {
+                    enableAutoResize: true,
+                    maxZoom: 19,
+                    minZoom: 12
+                });
+                this.map.enableScrollWheelZoom(true);
+                this.map.addControl(new BMapGL.NavigationControl());
+            } catch (error) {
+                throw new Error('地图实例创建失败: ' + error.message);
+            }
+        },
+
+        initGeocoder() {
+            this.geocoder = new BMapGL.Geocoder();
+        },
+
+        async startLocationFlow() {
+            try {
+                await this.getHighPrecisionLocation();
+            } catch (error) {
+                console.warn('定位失败:', error);
+                await this.fallbackLocation();
+            }
+        },
+
+        async getHighPrecisionLocation() {
+            if (!window.isSecureContext) {
+                console.warn('非安全上下文，使用IP定位');
+                return this.getIpLocation();
+            }
+
+            return new Promise((resolve, reject) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                            try {
+                                await this.handleLocationSuccess(
+                                    pos.coords.longitude,
+                                    pos.coords.latitude,
+                                    'GPS定位'
+                                );
+                                resolve();
+                            } catch (error) {
+                                reject(error);
+                            }
+                        },
+                        async (error) => {
+                            console.warn('GPS定位失败:', error);
+                            try {
+                                await this.useBaiduGeolocation();
+                                resolve();
+                            } catch (err) {
+                                reject(err);
+                            }
+                        },
+                        { enableHighAccuracy: true, timeout: 8000 }
+                    );
+                } else {
+                    this.useBaiduGeolocation().then(resolve).catch(reject);
+                }
+            });
+        },
+
+        useBaiduGeolocation() {
+            return new Promise((resolve, reject) => {
+                const geolocation = new BMapGL.Geolocation();
+                geolocation.getCurrentPosition(
+                    async (result) => {
+                        if (result?.point) {
+                            try {
+                                await this.handleLocationSuccess(
+                                    result.point.lng,
+                                    result.point.lat,
+                                    '百度定位'
+                                );
+                                resolve();
+                            } catch (error) {
+                                reject(error);
+                            }
+                        } else {
+                            reject(new Error('百度定位失败'));
+                        }
+                    },
+                    error => reject(error),
+                    { provider: 'system' }
+                );
+            });
+        },
+
+        async handleLocationSuccess(lng, lat, source) {
+            try {
+                this.clearExistingMarker();
+                this.map.centerAndZoom(new BMapGL.Point(lng, lat), this.zoomLevel);
+                
+                // 获取详细地理信息
+                this.locationDetail = await this.reverseGeocode(lng, lat);
+                this.currentAddress = this.locationDetail?.formatted || '未知位置';
+                
+                // 添加标记和信息窗口
+                this.addLocationMarker(lng, lat);
+                this.addMarkers();
+            } catch (error) {
+                console.error('位置处理失败:', error);
+                throw error;
+            }
+        },
+
+        async reverseGeocode(lng, lat) {
+            return new Promise((resolve) => {
+                this.geocoder.getLocation(new BMapGL.Point(lng, lat), (result) => {
+                    if (!result) return resolve(null);
+                    
+                    const detail = {
+                        formatted: result.address,
+                        province: result.addressComponents.province,
+                        city: result.addressComponents.city,
+                        district: result.addressComponents.district,
+                        street: `${result.addressComponents.street || ''}${result.addressComponents.streetNumber || ''}`,
+                        neighborhood: result.surroundingPois?.[0]?.title || '未知小区',
+                        business: result.business || '未知商圈'
+                    };
+                    resolve(detail);
+                });
+            });
+        },
+
+        addLocationMarker(lng, lat) {
+            const point = new BMapGL.Point(lng, lat);
+            
+            // 清除旧标记
+            if (this.locationMarker) {
+                this.map.removeOverlay(this.locationMarker);
+            }
+
+            // 创建新标记
+            this.locationMarker = new BMapGL.Marker(point, {
+                icon: new BMapGL.Icon(markerIcon, new BMapGL.Size(36, 36)),
+                enableMassClear: false
+            });
+
+            // 添加信息窗口
+            this.locationMarker.addEventListener('click', () => {
+                if (!this.locationDetail) return;
+                
+                const content = `
+                    <div class="info-window">
+                        <h3>定位详情</h3>
+                        <p class="main-address">📍 ${this.locationDetail.formatted}</p>
+                        <div class="detail-section">
+                            <p><strong>省份:</strong> ${this.locationDetail.province}</p>
+                            <p><strong>城市:</strong> ${this.locationDetail.city}</p>
+                            <p><strong>区域:</strong> ${this.locationDetail.district}</p>
+                            <p><strong>街道:</strong> ${this.locationDetail.street}</p>
+                            <p><strong>商圈:</strong> ${this.locationDetail.business}</p>
+                        </div>
+                    </div>
+                `;
+
+                const infoWindow = new BMapGL.InfoWindow(content, {
+                    width: 300,
+                    height: 250,
+                    title: '位置详情'
+                });
+                
+                this.map.openInfoWindow(infoWindow, point);
+            });
+
+            this.locationMarker.setAnimation(BMAP_ANIMATION_BOUNCE);
+            this.map.addOverlay(this.locationMarker);
+        },
+
+        async getIpLocation() {
+            try {
+                const result = await new Promise(resolve => 
+                    new BMapGL.LocalCity().get(resolve)
+                );
+                await this.handleLocationSuccess(
+                    result.center.lng,
+                    result.center.lat,
+                    'IP定位'
+                );
+            } catch (error) {
+                console.error('IP定位失败:', error);
+                this.setDefaultCenter();
+            }
+        },
+
+        async getThingList() {
+            try {
+                const res = await listThingList();
+                this.thingData = res.data.map(item => ({
+                    lat: item.latitude,
+                    lng: item.longitude,
+                    title: item.title,
+                    location: item.location,
+                    time: item.timestamp
+                }));
+                this.addMarkers();
+            } catch (error) {
+                console.error('数据获取失败:', error);
+            }
+        },
+
+        addMarkers() {
+            this.clearAllMarkers();
+            
+            this.thingData.forEach(data => {
+                const point = new BMapGL.Point(data.lng, data.lat);
+                const marker = new BMapGL.Marker(point, {
+                    icon: new BMapGL.Icon(markerIcon, new BMapGL.Size(32, 32))
+                });
+                
+                marker.addEventListener('click', () => {
+                    const content = `
+                        <div class="info-window">
+                            <h3>${data.title}</h3>
+                            <p class="location">📍 ${data.location}</p>
+                            <div class="details">
+                                <p><strong>经度:</strong> ${data.lng.toFixed(6)}</p>
+                                <p><strong>纬度:</strong> ${data.lat.toFixed(6)}</p>
+                                ${data.time ? `<p><strong>时间:</strong> ${new Date(data.time).toLocaleString()}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    const infoWindow = new BMapGL.InfoWindow(content, {
+                        width: 280,
+                        title: '物品详情'
+                    });
+                    
+                    this.map.openInfoWindow(infoWindow, point);
+                });
+
+                this.markers.push(marker);
+                this.map.addOverlay(marker);
+            });
+        },
+
+        clearExistingMarker() {
+            if (this.locationMarker) {
+                this.map.removeOverlay(this.locationMarker);
+                this.locationMarker = null;
+            }
+        },
+
+        clearAllMarkers() {
+            this.markers.forEach(marker => this.map.removeOverlay(marker));
+            this.markers = [];
+        },
+
+        refreshLocation() {
+            if (this.isLocating) return;
+            this.isLocating = true;
+            this.startLocationFlow().finally(() => {
+                this.isLocating = false;
+            });
+        },
+
+        setDefaultCenter() {
+            this.handleLocationSuccess(
+                DEFAULT_CENTER.lng,
+                DEFAULT_CENTER.lat,
+                '默认中心'
+            );
+        }
+    },
+    beforeDestroy() {
+        if (this.map) this.map.destroy();
+    }
 };
-
-
 </script>
 
-<style>
-.map-container {
+<style scoped>
+.map-page {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     height: 100vh;
 }
 
-#map {
-    width: 90%;
-    height: 90%;
-    border: 1px solid #ccc;
+.map-container {
+    flex: 1;
+    min-height: 500px;
+    background: #f0f2f5;
 }
 
-button {
-    margin-top: 10px;
+.control-panel {
+    padding: 1rem;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+.location-info {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.address-tag {
+    font-weight: 600;
+    color: #409eff;
+}
+
+.control-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn.primary {
+    background: #409eff;
+    color: white;
+}
+
+.zoom-control {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.zoom-input {
+    width: 60px;
+    padding: 6px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+/* 信息窗口样式 */
+:deep(.info-window) {
+    font-family: system-ui, sans-serif;
+    line-height: 1.6;
+    
+    h3 {
+        margin: 0 0 8px;
+        color: #333;
+        font-size: 16px;
+    }
+    
+    .main-address {
+        color: #666;
+        margin: 0 0 12px;
+    }
+    
+    .detail-section {
+        color: #444;
+        
+        p {
+            margin: 4px 0;
+            font-size: 14px;
+            
+            strong {
+                color: #333;
+                margin-right: 6px;
+            }
+        }
+    }
+    
+    .location {
+        color: #409eff;
+        font-weight: 500;
+    }
+    
+    .details {
+        margin-top: 8px;
+        color: #666;
+    }
 }
 </style>

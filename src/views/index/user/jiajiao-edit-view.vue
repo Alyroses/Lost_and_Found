@@ -75,46 +75,19 @@
 
           <!-- 奖励方式 -->
           <div class="item flex-view">
-            <div class="label">奖励方式</div>
-            <div class="right-box">
-              <a-radio-group 
-                v-model:value="rewardType"
-                class="reward-radio-group"
-              >
-                <a-radio value="points">积分</a-radio>
-                <a-radio value="cash">金额</a-radio>
-              </a-radio-group>
-            </div>
+          <div class="label">积分奖励</div>
+          <div class="right-box">
+            <input 
+              type="number" 
+              v-model="tData.form.points" 
+              min="0" 
+              max="15"
+              placeholder="请输入积分数 (最多15积分)" 
+              class="input-dom"
+              @input="limitPoints"
+            >
           </div>
-
-          <!-- 积分奖励 -->
-          <div v-if="rewardType === 'points'" class="item flex-view">
-            <div class="label">积分奖励</div>
-            <div class="right-box">
-              <input 
-                type="number" 
-                v-model="tData.form.points" 
-                min="0" 
-                placeholder="请输入积分数量" 
-                class="input-dom"
-              >
-            </div>
-          </div>
-
-          <!-- 现金奖励 -->
-          <div v-if="rewardType === 'cash'" class="item flex-view">
-            <div class="label">现金奖励</div>
-            <div class="right-box">
-              <input 
-                type="number" 
-                v-model="tData.form.price" 
-                min="0" 
-                placeholder="请输入金额 (最多 15元)" 
-                class="input-dom" 
-                @input="limitPrice"
-              >
-            </div>
-          </div>
+        </div>
 
           <!-- 联系人手机号 -->
           <div class="item flex-view">
@@ -246,11 +219,11 @@ const getTagDataList = () => {
 
 const rewardType = ref("points");
 
-// 限制金额
-const limitPrice = () => {
-  if (tData.form.price > 15) {
-    tData.form.price = 15;
-    message.warn("现金奖励最多 15 元");
+// 限制积分
+const limitPoints = () => {
+  if (tData.form.points > 15) {
+    tData.form.points = 15;
+    message.warn("积分奖励最多15分");
   }
 };
 
@@ -341,19 +314,14 @@ const submit = () => {
     return
   }
   
-  // 根据奖励方式判断并添加对应的参数
-  if (rewardType.value === "points") {
-    if (tData.form.points === undefined || tData.form.points === null || tData.form.points < 0) {
-      message.warn("积分奖励不能为空且不能为负数")
-      return
-    }
-    formData.append('points', tData.form.points)
-  } else if (rewardType.value === "cash") {
-    if (tData.form.price === undefined || tData.form.price === null || tData.form.price < 0) {
-      message.warn("现金奖励不能为空且不能为负数")
-      return
-    }
-    formData.append('price', tData.form.price)
+  // 积分验证
+  if (tData.form.points === undefined || tData.form.points < 0) {
+    message.warn("积分奖励不能为空且不能为负数");
+    return;
+  }
+  if (tData.form.points > 15) {
+    message.warn("积分奖励最多15分");
+    return;
   }
 
   if (tData.form.description) {
@@ -573,19 +541,9 @@ const submit = () => {
     }
   }
 }
-// 将现金奖励和联系人手机号放在同一行
-.edit-view > .item.flex-view:nth-child(6),
-.edit-view > .item.flex-view:nth-child(7) {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: middle;
-  margin-right: 20px;  // 可根据需求调整间距
-}
-
-// 设置这两项的输入框宽度为 300px
-.edit-view > .item.flex-view:nth-child(6) .right-box .input-dom,
-.edit-view > .item.flex-view:nth-child(7) .right-box .input-dom {
-  width: 300px;
+.input-dom[type="number"] {
+  width: 100%;
+  max-width: 238px;
 }
 
 
