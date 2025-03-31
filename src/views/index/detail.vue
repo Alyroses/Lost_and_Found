@@ -109,17 +109,16 @@
                 </div>
               </div>
               <div class="comments-list">
-                <div class="comment-item" v-for="item in commentData" :key="item.id">
+                <div class="comment-item" v-for="item in commentData">
                   <div class="flex-item flex-view">
                     <img :src="AvatarIcon" class="avator" />
                     <div class="person">
-                      <div class="name">{{ item.nickname }}</div> <!-- 修改为显示 nickname -->
+                      <div class="name">{{ item.username }}</div>
                       <div class="time">{{ item.comment_time }}</div>
                     </div>
                     <div class="float-right">
                       <span @click="like(item.id)">推荐</span>
                       <span class="num">{{ item.like_count }}</span>
-                      <img src="/src/assets/icons/svg/delete.svg" @click="deleteComment(item.id)" class="delete-icon" /> <!-- 添加删除图标 -->
                     </div>
                   </div>
                   <p class="comment-content">{{ item.content }}</p>
@@ -147,7 +146,6 @@
                     <span class="a-price">地点：{{ item.location }}</span><br>
                     <span class="a-price">奖励：{{ item.price }}元</span>
                   </span>
-                  <img src="/src/assets/icons/svg/delete.svg" @click="deleteRecommend(item.id)" class="delete-icon" /> <!-- 添加删除图标 -->
                 </div>
               </div>
             </div>
@@ -186,7 +184,7 @@
 import { FormInstance, message } from 'ant-design-vue';
 import { useRoute, useRouter } from 'vue-router/dist/vue-router';
 import { createApi, updateApi } from '/@/api/admin/notice';
-import { createApi as createCommentApi, likeApi, listThingCommentsApi, deleteCommentsApi } from '/@/api/index/comment';
+import { createApi as createCommentApi, likeApi, listThingCommentsApi } from '/@/api/index/comment';
 import { createApi as orderCreat } from '/@/api/index/order';
 import { addCollectUserApi, addScoreApi, addWishUserApi, detailApi, listApi as listThingList } from '/@/api/index/thing';
 import AvatarIcon from '/@/assets/images/avatar.jpg';
@@ -204,7 +202,31 @@ const route = useRoute();
 const userStore = useUserStore();
 
 let thingId = ref('');
-let detailData = ref({});
+interface DetailData {
+  cover: string;
+  title: string;
+  price: number;
+  classification_title: string;
+  location: string;
+  wish_count: number;
+  collect_count: number;
+  description: string;
+  id: string;
+  user: string;
+}
+
+let detailData = ref<DetailData>({
+  cover: '',
+  title: '',
+  price: 0,
+  classification_title: '',
+  location: '',
+  wish_count: 0,
+  collect_count: 0,
+  description: '',
+  id: '',
+  user: '',
+});
 let tabUnderLeft = ref(6);
 let tabData = ref(['简介', '评论']);
 let selectTabIndex = ref(0);
@@ -234,6 +256,8 @@ const modal = reactive({
     title: [{ required: true, message: '请输入', trigger: 'change' }],
   },
 });
+
+
 
 const handleAdd = () => {
   resetModal();
@@ -304,6 +328,8 @@ const resetModal = () => {
 const hideModal = () => {
   modal.visile = false;
 };
+
+
 
 onMounted(() => {
   thingId.value = route.query.id.trim();
@@ -410,8 +436,10 @@ const getRecommendThing = () => {
 };
 const handleDetail = (item) => {
   // 跳转新页面
-  router.push({ name: 'detail', query: { id: item.id } });
+  let text = router.resolve({ name: 'detail', query: { id: item.id } });
+  window.open(text.href, '_blank');
 };
+
 const sendComment = () => {
   console.log(commentRef.value);
   let text = commentRef.value.value.trim();
@@ -435,6 +463,7 @@ const sendComment = () => {
   }
 };
 
+
 const like = (commentId) => {
   likeApi({ commentId: commentId })
     .then((res) => {
@@ -444,19 +473,6 @@ const like = (commentId) => {
       console.log(err);
     });
 };
-
-const deleteComment = (commentId) => {
-  deleteCommentApi({ commentId: commentId })
-    .then((res) => {
-      message.success('删除成功');
-      getCommentList();
-    })
-    .catch((err) => {
-      console.log(err);
-      message.error('删除失败');
-    });
-};
-
 const getCommentList = () => {
   listThingCommentsApi({ thingId: thingId.value, order: order.value })
     .then((res) => {
@@ -595,7 +611,7 @@ const sortCommentList = (sortType) => {
     margin: 16px 0;
     color: #0f1111 !important;
     font-weight: 400 !important;
-    font-style: normal !重要;
+    font-style: normal !important;
     text-transform: none !important;
     text-decoration: none !important;
   }
@@ -1074,10 +1090,5 @@ const sortCommentList = (sortType) => {
 .a-price {
   color: #0f1111;
   font-size: 12px;
-}
-.delete-icon{
-  width: 22px;
-  height: 15px;
-  margin-bottom: 4px;
 }
 </style>

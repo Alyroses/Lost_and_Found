@@ -6,6 +6,7 @@ enum URL {
     detail = '/myapp/index/thing/detail',
     addWishUser = '/myapp/index/thing/addWishUser',
     addCollectUser = '/myapp/index/thing/addCollectUser',
+    getUserPoints = '/myapp/index/thing/getUserPoints',
     getCollectThingList = '/myapp/index/thing/getCollectThingList',
     getWishThingList = '/myapp/index/thing/getWishThingList',
     removeCollectUser = '/myapp/index/thing/removeCollectUser',
@@ -24,6 +25,7 @@ const detailApi = async (params: any) => get<any>({ url: URL.detail, params: par
 const addWishUserApi = async (params: any) => post<any>({ url: URL.addWishUser, params: params, headers: {} });
 const addCollectUserApi = async (params: any) => post<any>({ url: URL.addCollectUser, params: params, headers: {} });
 const getCollectThingListApi = async (params: any) => get<any>({ url: URL.getCollectThingList, params: params, headers: {} });
+const getUserPointsApi = async (params: any) => get<any>({ url: URL.getUserPoints, params: params, headers: {} });
 const getWishThingListApi = async (params: any) => get<any>({ url: URL.getWishThingList, params: params, headers: {} });
 
 const removeCollectUserApi = async (params: any) => post<any>({ url: URL.removeCollectUser, params: params, headers: {} });
@@ -43,6 +45,7 @@ const createSkimApi = async (data: any) =>
 const getSkimApi = async (params: any) => get<any>({ url: URL.getSkim, params: params, data: {}, headers: {} });
 
 export {
-    addCollectUserApi, addScoreApi, addWishUserApi, createApi, createSkimApi, detailApi, getCollectThingListApi, getSkimApi, getWishThingListApi, listApi, listUserThingApi, removeCollectUserApi, removeWishUserApi, updateApi
+    addCollectUserApi, addScoreApi, addWishUserApi, createApi, createSkimApi, detailApi, getCollectThingListApi, getSkimApi, getWishThingListApi, listApi, listUserThingApi, removeCollectUserApi, removeWishUserApi, updateApi,
+    getUserPointsApi
 };
 

@@ -12,13 +12,26 @@
     </div>
     <div class="right-view">
       <el-popover placement="right" width="300" trigger="click">
-        <el-table :data="data.scoreData">
-          <el-table-column width="150" property="nickname" label="用户昵称"></el-table-column>
-          <el-table-column width="100" property="score" label="得分"></el-table-column>
-          <!-- <el-table-column width="300" property="address" label="地址"></el-table-column> -->
+        <el-table :data="data.rankingList" v-loading="data.loading">
+          <!-- 用户昵称列 -->
+          <el-table-column label="用户昵称" width="200">
+            <template #default="{ row, $index }">
+              <span :style="{ color: row.id === currentUserId ? 'red' : '#ccaf13' }">
+                {{ $index + 1 }}. {{ row.nickname || row.username || '匿名用户' }}
+              </span>
+            </template>
+          </el-table-column>
+          <!-- 积分列 -->
+          <el-table-column label="积分" width="100">
+            <template #default="{ row }">
+              <span :style="{ color: row.id === currentUserId ? 'red' : '#ccaf13' }">
+                {{ row.total_points || 0 }}
+              </span>
+            </template>
+          </el-table-column>
         </el-table>
         <template #reference>
-          <el-button style="color: red;">Rank排名</el-button>
+          <el-button style="color: red;">Rank积分排名</el-button>
         </template>
       </el-popover>
       <a-button type="link" @click="handlemap()">分布地图</a-button>
@@ -86,6 +99,7 @@ import { message } from 'ant-design-vue';
 import LogoIcon from '/public/lost_found_logo.png';
 import { listApi as UserListApi } from '/@/api/admin/user';
 import { listApi, noticebyidApi } from '/@/api/index/notice';
+import { getUserRankingApi } from '/@/api/index/user';
 import AvatarIcon from '/@/assets/images/avatar.jpg';
 import logoImage from '/@/assets/images/k-logo.png';
 import MessageIcon from '/@/assets/images/message-icon.svg';
@@ -96,14 +110,20 @@ import { useUserStore } from '/@/store';
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+const currentUserId = userStore.user_id;
 
 import { watch } from 'vue';
 import { useRoute } from 'vue-router';
 
-
+interface RankingItem {
+  id: number;
+  username: string;
+  nickname?: string;
+  total_points: number;
+}
 // 页面数据
 const data = reactive({
-  scoreData: [],
+  rankingList: [] as RankingItem[],
   loading: false,
   keyword: '',
 });
@@ -117,10 +137,13 @@ let msgData = ref([] as any);
 let noticeId = userStore.user_id
 
 
+
+
 onMounted(() => {
   // getMessageList();
   getMessageByid();
-  getUserList();
+  // getUserList();
+  getUserRanking();
 });
 
 const getMessageByid = () => {
@@ -147,21 +170,32 @@ const getMessageList = () => {
       loading.value = false;
     });
 };
-const getUserList = () => {
-  data.loading = true;
-  UserListApi({
-    keyword: data.keyword,
-  })
-    .then((res) => {
-      data.loading = false;
-      console.log(res);
 
-      data.scoreData = res.data;
+// 获取排名数据
+const getUserRanking = () => {
+  data.loading = true;
+  UserListApi({ keyword: data.keyword })
+    .then(res => {
+      data.rankingList = res.data.map(item => ({
+        ...item,
+        // 数据清洗
+        nickname: item.nickname?.trim() || null,
+        username: item.username || `用户_${item.id.slice(0,6)}` // 生成易读的默认名
+      }));
+      
+      // 自动滚动到当前用户位置
+      setTimeout(() => {
+        const index = data.rankingList.findIndex(r => r.id === currentUserId);
+        if (index > -1) {
+          document.querySelector(`.el-table__row:nth-child(${index+1})`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
     })
-    .catch((err) => {
-      data.loading = false;
-      console.log(err);
-    });
+    .catch(err => {
+      message.error(`加载失败：${err.response?.data?.msg || '服务器异常'}`);
+    })
+    .finally(() => data.loading = false);
 };
 
 const search = () => {
@@ -443,6 +477,13 @@ const handlemap = () => {
     color: #484848;
     font-size: 14px;
     line-height: 22px;
+  }
+  .el-table__row {
+    transition: all 0.3s ease;
+  }
+  .highlight-user {
+    background: rgba(255,0,0,0.1) !important;
+    transform: scale(1.02);
   }
 }
 </style>

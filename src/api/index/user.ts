@@ -7,6 +7,7 @@ enum URL {
     updateUserPwd = '/myapp/index/user/updatePwd',
     updateUserInfo = '/myapp/index/user/update',
     captchaurl = '/myapp/index/user/generateCaptcha',
+    userRanking = '/myapp/index/user/ranking',  // 获取用户积分排名
     sendEmailCode = '/myapp/index/user/sendEmailCode', // 添加获取邮箱验证码的 URL
     qqLogin = '/myapp/index/user/qq/authorization', // 添加 QQ 登录的 URL
     oauthCallback = '/myapp/index/user/oauth_callback' // 添加 OAuth 回调的 URL
@@ -29,6 +30,6 @@ const qqLoginApi = async (params: any) => get<any>({ url: URL.qqLogin, params: p
 const oauthCallbackApi = async (params: any) => get<any>({ url: URL.oauthCallback, params: params, withCredentials: true }); // 添加 OAuth 回调的 API
 const updateUserPwdApi = async (params: any, data:any) => post<any>({ url: URL.updateUserPwd, params: params, data:data });
 const updateUserInfoApi = async (params: any,data: any) => post<any>({ url: URL.updateUserInfo, params:params, data: data, headers: { 'Content-Type': 'multipart/form-data;charset=utf-8' } });
-
-export { detailApi, updateUserInfoApi, updateUserPwdApi, userLoginApi, userRegisterApi, sendEmailCodeApi, qqLoginApi, oauthCallbackApi }; // 导出 OAuth 回调的 API
+const getUserRankingApi = async (params: any,data: any) => get<any>({ url: URL.userRanking,params:params, data: data, headers: { 'Content-Type': 'multipart/form-data;charset=utf-8' }});
+export { detailApi, updateUserInfoApi, updateUserPwdApi, userLoginApi, userRegisterApi, sendEmailCodeApi, qqLoginApi, oauthCallbackApi ,getUserRankingApi }; // 导出 OAuth 回调的 API
 

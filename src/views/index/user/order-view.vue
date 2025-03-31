@@ -1,67 +1,35 @@
 <template>
   <div class="content-list">
-    <div class="list-title">我的预约</div>
+    <div class="list-title">我的积分详情</div>
     <a-tabs default-active-key="1" @change="onTabChange">
-      <a-tab-pane key="1" tab="全部" />
-      <a-tab-pane key="2" tab="待付款" />
-      <a-tab-pane key="3" tab="已支付" />
+      <a-tab-pane key="1" tab="积分总览" />
+      <a-tab-pane key="2" tab="获取积分" />
+      <a-tab-pane key="3" tab="积分支出" />
     </a-tabs>
     <a-spin :spinning="loading" style="min-height: 200px">
       <div class="list-content">
-        <div class="order-item-view" v-for="(item, index) in orderData" :key="index">
+        <div class="point-item-view" v-for="(item, index) in pointData" :key="index">
           <div class="header flex-view">
             <div class="left">
-              <span class="text">物品单号</span>
-              <span class="num mg-4">#</span>
-              <span class="num">{{ item.order_number }}</span>
-              <span class="time">{{ item.order_time }}</span>
+              <span class="text">积分类型</span>
+              <span class="type">{{ item.type }}</span>
+              <span class="time">{{ item.time }}</span>
             </div>
             <div class="right">
-              <a-popconfirm v-if="item.status === '1'" title="确定取消？" ok-text="是" cancel-text="否"
-                @confirm="handleCancel(item)">
-                <a-button type="primary" size="small" style="margin-right: 24px">取消</a-button>
-              </a-popconfirm>
-              <a-popconfirm v-if="item.status === '1'" title="确定支付？" ok-text="是" cancel-text="否" @confirm="$router.push({ name: 'pay' })">
-                <a-button type="primary" size="small" style="margin-right: 24px" >支付</a-button>
-              </a-popconfirm>
-              <span class="text">预约状态</span>
-              <span class="state">{{ item.status === '1' ? '待支付' : item.status === '2' ? '已支付' : '已取消' }}</span>
+              <span class="text">积分变动</span>
+              <span class="change" :class="{ positive: item.change > 0, negative: item.change < 0 }">
+                {{ item.change > 0 ? '+' : '' }}{{ item.change }}
+              </span>
             </div>
           </div>
           <div class="content flex-view">
-            <div class="left-list">
-              <div class="list-item flex-view">
-                <img :src="item.cover" class="thing-img" />
-                <div class="detail flex-between flex-view">
-                  <div class="flex-between flex-top flex-view">
-                    <h2 class="name">{{ item.title }}</h2>
-                    <span class="count">x{{ item.count }}</span>
-                  </div>
-                  <div class="flex-between flex-center flex-view">
-                    <span class="type"></span>
-                    <span class="price">¥{{ item.price }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-          <div class="bottom flex-view">
-            <div class="left">
-              <span class="text">共{{ item.count }}件</span>
-              <span class="open" @click="handleDetail(item.thing)">物品详情</span>
-            </div>
-            <div class="right flex-view">
-              <span class="text">总计</span>
-              <span class="num">¥ {{ item.price * item.count }}</span>
-              <!-- <span class="text">优惠</span>
-              <span class="num">¥0</span> -->
-              <span class="text">现场支付</span>
-              <span class="money">¥ {{ item.price * item.count }}</span>
+            <div class="description">
+              <span class="text">描述：</span>
+              <span class="detail">{{ item.description }}</span>
             </div>
           </div>
         </div>
-        <template v-if="!orderData || orderData.length <= 0">
+        <template v-if="!pointData || pointData.length <= 0">
           <a-empty style="width: 100%; margin-top: 200px" />
         </template>
       </div>
@@ -71,81 +39,79 @@
 
 <script setup>
 import { message } from 'ant-design-vue';
-import { cancelUserOrderApi, userOrderListApi } from '/@/api/index/order';
+import { getUserPointsApi } from '/@/api/index/thing';
 import { useUserStore } from '/@/store';
-import { BASE_URL } from '/@/store/constants';
 
-const router = useRouter();
-const route = useRoute();
 const userStore = useUserStore();
-
 const loading = ref(false);
-const orderData = ref([]);
-const orderStatus = ref('');
+const pointData = ref([]);
+const pointType = ref('');
 
 onMounted(() => {
-  getOrderList();
+  getPointList();
 });
 
 const onTabChange = (key) => {
   console.log(key);
   if (key === '1') {
-    orderStatus.value = '';
+    pointType.value = ''; // 全部积分
   }
   if (key === '2') {
-    orderStatus.value = '1';
+    pointType.value = 'income'; // 获取积分
   }
   if (key === '3') {
-    orderStatus.value = '2';
+    pointType.value = 'expense'; // 积分支出
   }
-  getOrderList();
+  getPointList();
 };
-const getOrderList = () => {
+
+const getPointList = () => {
   loading.value = true;
-  let userId = userStore.user_id;
-  userOrderListApi({ userId: userId, orderStatus: orderStatus.value })
+  const params = {
+    user_id: userStore.user_id, // 当前用户 ID
+    username: userStore.user_name, // 当前用户名
+  };
+  getUserPointsApi(params)
     .then((res) => {
-      res.data.forEach((item, index) => {
-        if (item.cover) {
-          item.cover = BASE_URL + item.cover;
-        }
-      });
-      orderData.value = res.data;
-      loading.value = false;
+      if (res.code === 0) {
+        pointData.value = res.data.map((item) => ({
+          type: getActionType(item.action),
+          change: item.points,
+          time: item.created_time,
+          description: item.content,
+        }));
+      } else {
+        message.error('获取积分明细失败');
+      }
     })
     .catch((err) => {
-      console.log(err);
+      console.error('API 请求错误：', err);
+      message.error('服务器错误');
+    })
+    .finally(() => {
       loading.value = false;
     });
 };
-const handleDetail = (thingId) => {
-  // 跳转新页面
-  let text = router.resolve({ name: 'detail', query: { id: thingId } });
-  window.open(text.href, '_blank');
-};
-const handleCancel = (item) => {
-  cancelUserOrderApi({
-    id: item.id,
-  })
-    .then((res) => {
-      message.success('取消成功');
-      getOrderList();
-    })
-    .catch((err) => {
-      message.error(err.msg || '取消失败');
-    });
+
+// 将 action 转换为中文
+const getActionType = (action) => {
+  const actionMap = {
+    login: '每日登录',
+    publish_found: '发布失物招领',
+    publish_lost: '发布寻物启事',
+    expire: '积分过期',
+    deduct: '积分扣除',
+  };
+  return actionMap[action] || '未知类型';
 };
 </script>
+
 <style scoped lang="less">
 .flex-view {
-  display: -webkit-box;
-  display: -ms-flexbox;
   display: flex;
 }
 
 .content-list {
-  -webkit-box-flex: 1;
-  -ms-flex: 1;
   flex: 1;
 
   .list-title {
@@ -158,7 +124,7 @@ const handleCancel = (item) => {
   }
 }
 
-.order-item-view {
+.point-item-view {
   background: #f7f9fb;
   border-radius: 4px;
   padding: 16px;
@@ -167,8 +133,6 @@ const handleCancel = (item) => {
   .header {
     border-bottom: 1px solid #cedce4;
     padding-bottom: 12px;
-    -webkit-box-pack: justify;
-    -ms-flex-pack: justify;
     justify-content: space-between;
     font-size: 14px;
 
@@ -176,18 +140,10 @@ const handleCancel = (item) => {
       color: #6f6f6f;
     }
 
-    .mg-4 {
-      margin-left: 4px;
-    }
-
-    .num {
+    .type {
       font-weight: 500;
       color: #152844;
-    }
-
-    .num {
-      font-weight: 500;
-      color: #152844;
+      margin-left: 8px;
     }
 
     .time {
@@ -195,175 +151,42 @@ const handleCancel = (item) => {
       color: #a1adc5;
     }
 
-    .state {
-      color: #ff7b31;
+    .change {
       font-weight: 600;
-      margin-left: 10px;
+      font-size: 16px;
+      margin-left: 8px;
+
+      &.positive {
+        color: #52c41a;
+      }
+
+      &.negative {
+        color: #ff4d4f;
+      }
     }
   }
 
   .content {
     padding: 12px 0;
-    overflow: hidden;
 
-    .left-list {
-      overflow: hidden;
-      height: 132px;
-      -webkit-box-flex: 2;
-      -ms-flex: 2;
-      flex: 2;
-      padding-right: 16px;
+    .description {
+      font-size: 14px;
+      color: #6f6f6f;
 
-      .list-item {
-        height: 60px;
-        margin-bottom: 12px;
-        overflow: hidden;
-        cursor: pointer;
-      }
-
-      .thing-img {
-        width: 48px;
-        height: 100%;
-        margin-right: 12px;
+      .text {
+        font-weight: 600;
+        color: #152844;
       }
 
       .detail {
-        -webkit-box-flex: 1;
-        -ms-flex: 1;
-        flex: 1;
-        -webkit-box-orient: vertical;
-        -webkit-box-direction: normal;
-        -ms-flex-direction: column;
-        flex-direction: column;
-      }
-
-      .flex-between {
-        -webkit-box-pack: justify;
-        -ms-flex-pack: justify;
-        justify-content: space-between;
-      }
-
-      .flex-between {
-        -webkit-box-pack: justify;
-        -ms-flex-pack: justify;
-        justify-content: space-between;
-      }
-
-      .flex-top {
-        -webkit-box-align: start;
-        -ms-flex-align: start;
-        align-items: flex-start;
-      }
-
-      .name {
-        color: #152844;
-        font-weight: 600;
-        font-size: 14px;
-        line-height: 18px;
-      }
-
-      .count {
-        color: #484848;
-        font-size: 12px;
-      }
-
-      .flex-between {
-        -webkit-box-pack: justify;
-        -ms-flex-pack: justify;
-        justify-content: space-between;
-      }
-
-      .flex-center {
-        -webkit-box-align: center;
-        -ms-flex-align: center;
-        align-items: center;
-      }
-
-      .type {
-        color: #6f6f6f;
-        font-size: 12px;
-      }
-
-      .price {
-        color: #ff7b31;
-        font-weight: 600;
-        font-size: 14px;
-      }
-    }
-
-    .right-info {
-      -webkit-box-flex: 1;
-      -ms-flex: 1;
-      flex: 1;
-      border-left: 1px solid #cedce4;
-      padding-left: 12px;
-      line-height: 22px;
-      font-size: 14px;
-
-      .title {
-        color: #6f6f6f;
-      }
-
-      .name {
-        color: #152844;
-      }
-
-      .text {
+        margin-left: 8px;
         color: #484848;
       }
-
-      .mg {
-        margin-bottom: 4px;
-      }
-    }
-  }
-
-  .bottom {
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-    border-top: 1px solid #cedce4;
-    -webkit-box-pack: justify;
-    -ms-flex-pack: justify;
-    justify-content: space-between;
-    font-size: 14px;
-    padding-top: 14px;
-
-    .text {
-      color: #6f6f6f;
-    }
-
-    .open {
-      color: #4684e2;
-      margin-left: 8px;
-      cursor: pointer;
-    }
-
-    .right {
-      -webkit-box-align: center;
-      -ms-flex-align: center;
-      align-items: center;
-    }
-
-    .text {
-      color: #6f6f6f;
-    }
-
-    .num {
-      color: #152844;
-      margin: 0 40px 0 8px;
-    }
-
-    .money {
-      font-weight: 600;
-      font-size: 18px;
-      color: #ff7b31;
-      margin-left: 8px;
     }
   }
 }
 
-.order-item-view:first-child {
+.point-item-view:first-child {
   margin-top: 16px;
 }
 </style>

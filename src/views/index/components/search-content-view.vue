@@ -42,8 +42,10 @@
 
 <script setup>
   import { listApi as listThingList } from '/@/api/index/thing';
-import { useUserStore } from '/@/store';
-import { BASE_URL } from '/@/store/constants';
+  import { useUserStore } from '/@/store';
+  import { BASE_URL } from '/@/store/constants';
+  import Header from '/@/views/index/components/header.vue';
+  import Footer from '/@/views/index/components/footer.vue';
 
   const userStore = useUserStore();
   const router = useRouter();
@@ -51,6 +53,7 @@ import { BASE_URL } from '/@/store/constants';
 
   const tData = reactive({
     loading: false,
+
     keyword: '',
     thingData: [],
     pageData: [],
@@ -74,7 +77,8 @@ import { BASE_URL } from '/@/store/constants';
   );
 
   const search = () => {
-    tData.keyword = route.query.keyword.trim();
+    // 检查 route.query.keyword 是否存在
+    tData.keyword = route.query.keyword?.trim() || '未定义关键词';
     getThingList({ keyword: tData.keyword });
   };
 
@@ -90,6 +94,7 @@ import { BASE_URL } from '/@/store/constants';
     let text = router.resolve({ name: 'detail', query: { id: item.id } });
     window.open(text.href, '_blank');
   };
+
   const getThingList = (data) => {
     tData.loading = true;
     listThingList(data)

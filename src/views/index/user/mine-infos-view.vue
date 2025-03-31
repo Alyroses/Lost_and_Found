@@ -14,7 +14,7 @@
       <div class="counts flex-view">
         <div class="fans-box flex-item" @click="clickMenu('collectThingView')">
           <div class="text">收藏</div>
-          <div class="num">{{ collectCount }}</div>
+          <div class="num">{{ collectCount }}</div> <!-- 动态显示收藏数 -->
         </div>
         <div class="split-line"> </div>
         <div class="follow-box flex-item" @click="clickMenu('wishThingView')">
@@ -43,8 +43,8 @@
           <span>我的发布</span>
         </div>
         <div class="mine-item flex-view" @click="clickMenu('orderView')">
-          <img :src="SettingIconImage" alt="我的预约" />
-          <span>处理详情</span>
+          <img :src="SettingIconImage" alt="我的积分详情" />
+          <span>积分详情</span>
         </div>
         <div class="mine-item flex-view" @click="clickMenu('skimView')">
           <img :src="SettingIconImage" alt="我的浏览" />
@@ -76,16 +76,28 @@ import PushIconImage from '/@/assets/images/setting-push-icon.svg';
 import SafeIconImage from '/@/assets/images/setting-safe-icon.svg';
 
 import { getCollectThingListApi, getWishThingListApi } from '/@/api/index/thing';
-import { useUserStore } from '/@/store';
+import { useUserStore } from '/@/store'; // 确保导入用户详情接口
+import { detailApi } from '/@/api/index/user';
 const userStore = useUserStore();
 const router = useRouter();
 
 let collectCount = ref(0);
 let wishCount = ref(0);
 
+const getUserInfo = () => {
+  const userId = userStore.user_id; // 获取当前用户 ID
+  detailApi({ id: userId })
+    .then((res) => {
+      collectCount.value = res.data.collect_count; // 动态更新收藏数
+    })
+    .catch((err) => {
+      console.error('获取用户信息失败', err);
+    });
+};
+
 onMounted(() => {
-  getCollectThingList();
-  getWishThingList();
+  getUserInfo(); // 获取用户信息
+  getWishThingList(); // 获取心愿单数据
 });
 
 const clickMenu = (name: any) => {
