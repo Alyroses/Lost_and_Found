@@ -29,7 +29,7 @@ import Header from '/@/views/index/components/header.vue';
 import Footer from '/@/views/index/components/footer.vue';
 import markerIcon from '/src/assets/icons/svg/地图标记.svg';
 
-const DEFAULT_CENTER = { lng: 113.86689, lat: 39.915 };
+// const DEFAULT_CENTER = { lng: 113.86689, lat: 39.915 };
 
 export default {
     components: { Footer, Header },
@@ -38,7 +38,7 @@ export default {
             map: null,
             markers: [],
             thingData: [],
-            zoomLevel: 17,
+            zoomLevel: 7, // 默认缩放级别
             currentAddress: '',
             geocoder: null,
             locationMarker: null,
@@ -86,7 +86,7 @@ export default {
                 this.map = new BMapGL.Map('map-container', {
                     enableAutoResize: true,
                     maxZoom: 19,
-                    minZoom: 12
+                    minZoom: 5 // 设置最小缩放级别为 5（省级）
                 });
                 this.map.enableScrollWheelZoom(true);
                 this.map.addControl(new BMapGL.NavigationControl());
@@ -110,7 +110,7 @@ export default {
 
         async getHighPrecisionLocation() {
             if (!window.isSecureContext) {
-                console.warn('非安全上下文，使用IP定位');
+                console.warn('非安全上下文,使用IP定位');
                 return this.getIpLocation();
             }
 
@@ -347,6 +347,24 @@ export default {
                 DEFAULT_CENTER.lat,
                 '默认中心'
             );
+        },
+
+        setNewZoom() {
+            if (this.zoomLevel < 5 || this.zoomLevel > 19) {
+                this.$alert('缩放级别必须在 5 到 19 之间');
+                return;
+            }
+            this.map.setZoom(this.zoomLevel);
+        },
+
+        zoomIn() {
+            const newZoom = Math.min(this.map.getZoom() + 1, 19);
+            this.map.setZoom(newZoom);
+        },
+
+        zoomOut() {
+            const newZoom = Math.max(this.map.getZoom() - 1, 5); // 确保最小缩放级别为 5
+            this.map.setZoom(newZoom);
         }
     },
     beforeDestroy() {

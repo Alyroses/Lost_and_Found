@@ -92,7 +92,7 @@ const contentData = reactive({
     thing:undefined,
   },
 
-  tabData: ['最新', '最热', '推荐'],
+  tabData: ['最新', '最热', '失物信息','招领信息'],
   selectTabIndex: 0,
   tabUnderLeft: 12,
 
@@ -639,3 +639,4 @@ li {
   font-size: 14px;
 }
 </style>
+

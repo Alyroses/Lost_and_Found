@@ -10,23 +10,24 @@
             <div class="right-box avatar-box flex-view">
               <a-col span="24">
                 <a-form-item label="">
-                  <a-upload-dragger 
-                    name="file" 
-                    accept="image/*" 
-                    :multiple="false" 
+                  <a-upload-dragger
+                    name="file"
+                    accept="image/*"
+                    :multiple="false"
                     :before-upload="beforeUpload"
-                    v-model:file-list="fileList"
+                    :show-upload-list="false"  
                     class="custom-uploader"
                   >
                     <p class="ant-upload-drag-icon">
-                      <template v-if="tData.form.coverUrl">
-                        <img :src="tData.form.coverUrl" class="preview-image" />
+                      <!-- 使用本地预览 URL -->
+                      <template v-if="tData.form.previewUrl">
+                        <img :src="tData.form.previewUrl" class="preview-image" />
                       </template>
                       <template v-else>
                         <file-image-outlined />
                       </template>
                     </p>
-                    <p class="ant-upload-text">请选择要上传的图片</p>
+                    <p class="ant-upload-text">请选择或拖拽图片到此处</p>
                   </a-upload-dragger>
                 </a-form-item>
               </a-col>
@@ -82,7 +83,7 @@
               v-model="tData.form.points" 
               min="0" 
               max="15"
-              placeholder="请输入积分数 (最多15积分)" 
+              placeholder="请输入积分数 (最多10积分)" 
               class="input-dom"
               @input="limitPoints"
             >
@@ -173,8 +174,14 @@ import { listApi as listTagApi } from '/@/api/admin/tag';
 import { createApi, listUserThingApi, updateApi } from '/@/api/index/thing';
 import { useUserStore } from "/@/store";
 import { BASE_URL } from "/@/store/constants";
+// import COS from 'cos-js-sdk-v5'; // <--- 移除 COS SDK 导入
+import { FileImageOutlined } from '@ant-design/icons-vue'; // 确保图标已导入
+
 const router = useRouter();
 const userStore = useUserStore();
+
+// --- 移除 COS 实例创建 ---
+// const cos = new COS({ ... });
 
 const selectedOptions = ref([])
 
@@ -183,75 +190,95 @@ const tData = reactive({
   tagData: [{}],
   regionDatas: regionData,
   form: {
-    avatar: undefined,
-    avatarFile: undefined,
+    // avatar: undefined, // 这个字段似乎未使用，可以移除
+    avatarFile: null, // 用于存储文件对象
     title: undefined,
-    price: undefined,
-    points: undefined, // 新增积分奖励字段
+    // price: undefined, // 这个字段似乎未使用，如果是积分奖励，使用 points
+    points: undefined, // 积分奖励字段
     tag: [],
     mobile: undefined,
-    location: undefined,
+    location: undefined, // 省市区
+    detailLocation: undefined, // 详细地址
     description: undefined,
-    coverUrl: undefined,
+    // coverUrl: undefined, // 不再需要前端直接处理上传后的 URL
+    previewUrl: null, // 用于本地预览图片
     classification: undefined,
     longitude: undefined,
     latitude: undefined,
+    id: undefined, // 用于判断是创建还是更新
   }
 })
 
 let cData = ref([])
+let fileList = ref([]); // 虽然不显示列表，但保留以配合 a-upload-dragger
 
 onMounted(() => {
   getCDataList()
-  // getUserThing()
   getTagDataList()
+  // 如果是编辑模式，需要获取现有数据
+  // getUserThing() // 暂时注释掉，根据需要启用
 })
 
 //获取标签
 const getTagDataList = () => {
   listTagApi({}).then((res) => {
-    res.data.forEach((item, index) => {
-      item.index = index + 1;
-    });
     tData.tagData = res.data;
   });
 };
 
-const rewardType = ref("points");
-
 // 限制积分
 const limitPoints = () => {
-  if (tData.form.points > 15) {
-    tData.form.points = 15;
-    message.warn("积分奖励最多15分");
+  if (tData.form.points > 10) {
+    tData.form.points = 10;
+    message.warn("积分奖励最多10分");
+  } else if (tData.form.points < 0) {
+    tData.form.points = 0;
   }
 };
 
 //获取地点
 const handleChange = () => {
-  console.log(selectedOptions.value)
-  if (
-    selectedOptions.value[0] != null &&
-    selectedOptions.value[1] != null &&
-    selectedOptions.value[2] != null
-  ) {
-    tData.form.location =
-      codeToText[selectedOptions.value[0]] +
-      '/' +
-      codeToText[selectedOptions.value[1]] +
-      '/' +
-      codeToText[selectedOptions.value[2]]
+  if (selectedOptions.value.length === 3) {
+    const province = codeToText[selectedOptions.value[0]];
+    const city = codeToText[selectedOptions.value[1]];
+    const district = codeToText[selectedOptions.value[2]];
+    const directMunicipalities = ["北京市", "上海市", "天津市", "重庆市"];
+    let regionText = "";
+    if (directMunicipalities.includes(province)) {
+      regionText = province + district;
+    } else {
+      regionText = province + city + district;
+    }
+    tData.form.location = regionText;
+  } else {
+     tData.form.location = undefined; // 清空地区如果选择不完整
   }
-}
+};
 
+// --- 修改 beforeUpload ---
+// 处理图片选择和预览
 const beforeUpload = (file) => {
-  // 改文件名
-  const fileName = new Date().getTime().toString() + '.' + file.type.substring(6)
-  const copyFile = new File([file], fileName)
-  console.log(copyFile)
-  tData.form.avatarFile = copyFile
-  return false
-}
+  const isImage = file.type.startsWith('image/');
+  if (!isImage) {
+    message.error('只能上传图片文件!');
+    return false; // 阻止非图片文件
+  }
+  const isLt2M = file.size / 1024 / 1024 < 2; // 限制大小为 2MB
+  if (!isLt2M) {
+    message.error('图片大小不能超过 2MB!');
+    return false;
+  }
+
+  // 生成本地预览 URL
+  tData.form.previewUrl = URL.createObjectURL(file);
+  // 保存文件对象以备提交
+  tData.form.avatarFile = file;
+
+  fileList.value = [file]; // 更新 fileList 以触发组件状态，虽然不显示
+
+  return false; // 阻止 antdv 的默认上传行为
+};
+
 
 const getCDataList = () => {
   listClassificationApi({}).then(res => {
@@ -259,116 +286,182 @@ const getCDataList = () => {
   })
 }
 
-const getUserThing = () => {
-  loading.value = true
-  let userId = userStore.user_id
-  listUserThingApi({ user: userId }).then(res => {
-    console.log(res)
-    if (res.data && res.data.length > 0) {
-      tData.form = res.data[0]
-    }
-    if (tData.form.cover) {
-      tData.form.avatar = BASE_URL + tData.form.cover
-    }
-    loading.value = false
-  }).catch(err => {
-    console.log(err)
-    loading.value = false
-  })
-}
+// --- 获取用户现有物品信息（编辑时用） ---
+// const getUserThing = () => { ... } // 如果需要编辑功能，取消注释并实现
 
-const submit = () => {
+//地址经纬度解析
+const getGeoLocation = () => {
+  // 确保 BMapGL 已加载
+  if (!window.BMapGL || !window.BMapGL.Geocoder) {
+     message.error("地图服务未加载，无法解析地址");
+     return Promise.reject("地图服务未加载");
+  }
+  const myGeo = new BMapGL.Geocoder();
+  const fullAddress = getFullAddress(); // 使用辅助函数获取完整地址
+   if (!fullAddress) {
+     return Promise.reject("地址信息不完整");
+   }
+  return new Promise((resolve, reject) => {
+    myGeo.getPoint(fullAddress, (point) => {
+      if (point) {
+        resolve({ lng: point.lng, lat: point.lat });
+      } else {
+        // 尝试仅使用省市区进行解析
+        myGeo.getPoint(tData.form.location, (pointFallback) => {
+           if (pointFallback) {
+             console.warn(`详细地址 "${fullAddress}" 解析失败，已回退到省市区解析`);
+             resolve({ lng: pointFallback.lng, lat: pointFallback.lat });
+           } else {
+             console.error(`地址 "${fullAddress}" 及省市区 "${tData.form.location}" 均无法解析`);
+             reject(`无法解析地址: ${fullAddress}`);
+           }
+        });
+      }
+    }, tData.form.location || "全国"); // 提供城市信息以提高精度
+  });
+};
+
+// --- 辅助函数，用于获取完整地址 ---
+const getFullAddress = () => {
+  let address = tData.form.location || '';
+  if (tData.form.detailLocation) {
+    // 简单拼接，后端可以进一步处理去重等逻辑
+    address += tData.form.detailLocation;
+  }
+  return address.trim();
+};
+
+
+// --- 修改 submit 函数 ---
+const submit = async () => {
   let formData = new FormData()
   let userId = userStore.user_id
 
-  // 检查并填充表单数据
-  if (tData.form.avatarFile) {
-    formData.append('cover', tData.form.avatarFile)
+  // --- 表单验证 ---
+  if (!tData.form.title) {
+    message.warn("寻物标题不能为空"); return;
   }
-  if (tData.form.title) {
-    formData.append('title', tData.form.title)
-  } else {
-    message.warn("寻物标题不能为空")
-    return
+  if (!tData.form.mobile) {
+    message.warn("手机号不能为空"); return;
   }
+   if (!/^\d{11}$/.test(tData.form.mobile)) {
+    message.warn("请输入有效的11位手机号"); return;
+  }
+  if (!tData.form.location) {
+    message.warn("地区不能为空"); return;
+  }
+   if (tData.form.points === undefined || tData.form.points === null || tData.form.points < 0) { // 包含 null 检查
+    message.warn("积分奖励不能为空且不能为负数"); return;
+  }
+  // 积分限制已在 input 事件处理
+  // if (tData.form.points > 10) { ... }
+  if (!tData.form.description) {
+    message.warn("物品描述不能为空"); return;
+  }
+   // 检查是否有文件被选中（编辑时可能没有新文件）
+   if (!tData.form.avatarFile && !tData.form.id) { // 创建时必须有文件
+     message.warn("请上传物品图片"); return;
+   }
+   // --- 结束表单验证 ---
+
+
+  // --- 填充表单数据 ---
+  formData.append('title', tData.form.title);
+  formData.append('mobile', tData.form.mobile);
+  formData.append('location', tData.form.location); // 省市区
+  formData.append('points', tData.form.points.toString()); // 积分
+  formData.append('description', tData.form.description);
+  formData.append('user', userId);
+  formData.append('status', '0'); // 0 代表失物信息 (寻找中)
+  formData.append('type', 'lost'); // 明确类型为失物
+
   if (tData.form.classification) {
-    formData.append('classification', tData.form.classification)
+    formData.append('classification', tData.form.classification);
   }
-  if (tData.form.tag) {
-    tData.form.tag.forEach(function (value) {
-      if (value) {
-        formData.append('tag', value);
-      }
+  if (tData.form.tag && tData.form.tag.length > 0) {
+    tData.form.tag.forEach(tagId => {
+      if (tagId) formData.append('tag', tagId);
     });
   }
-  if (tData.form.mobile) {
-    formData.append('mobile', tData.form.mobile)
-  } else {
-    message.warn("手机号不能为空")
-    return
+   if (tData.form.detailLocation) {
+    formData.append('detail_location', tData.form.detailLocation); // 详细地址
   }
-  if (tData.form.location) {
-    formData.append('location', tData.form.location)
-  } else {
-    message.warn("地区不能为空")
-    return
+
+  // --- 图片文件处理 ---
+  // 只有当用户选择了新文件时才添加到 FormData
+  if (tData.form.avatarFile) {
+     formData.append('cover', tData.form.avatarFile); // 'cover' 是后端接收文件的字段名
   }
-  
-  // 积分验证
-  if (tData.form.points === undefined || tData.form.points < 0) {
-    message.warn("积分奖励不能为空且不能为负数");
-    return;
-  }
-  if (tData.form.points > 15) {
-    message.warn("积分奖励最多15分");
+  // --- 结束图片文件处理 ---
+
+
+  // --- 获取经纬度 ---
+  const fullAddress = getFullAddress();
+  if (!fullAddress && !tData.form.location) { // 确保至少有省市区信息
+    message.warn("请完善地址信息");
     return;
   }
 
-  if (tData.form.description) {
-    formData.append('description', tData.form.description)
-  } else {
-    message.warn("介绍不能为空")
-    return
-  }
+  loading.value = true; // 开始加载
 
-  // 添加用户 ID 和状态
-  formData.append('user', userId)
-  formData.append('status', '1')
-
-  // 使用百度地图 API 获取当前位置的经纬度
-  let geolocation = new BMapGL.Geolocation()
-  geolocation.getCurrentPosition(function (r) {
-    if (this.getStatus() === BMAP_STATUS_SUCCESS) {
-      // 获取成功，添加经纬度到 formData
-      let longitude = r.point.lng
-      let latitude = r.point.lat
-      // 格式化经纬度，保留小数点后5位
-      longitude = parseFloat(longitude.toFixed(5))
-      latitude = parseFloat(latitude.toFixed(5))
-      console.log(longitude)
-      console.log(latitude)
-      formData.append('longitude', longitude)
-      formData.append('latitude', latitude)
-
-      if (tData.form.id) {
-        updateApi({ id: tData.form.id }, formData).then(res => {
-          message.success('保存成功，后台审核中')
-        }).catch(err => {
-          console.log(err)
-        })
-      } else {
-        createApi(formData).then(res => {
-          message.success('保存成功，后台审核中')
-        }).catch(err => {
-          console.log(err)
-        })
-      }
-    } else {
-      message.error('无法获取当前位置')
+  try {
+    // 尝试解析经纬度，如果失败则不阻塞提交，后端可以再次尝试或留空
+    try {
+       const locationPoint = await getGeoLocation();
+       formData.append('longitude', locationPoint.lng.toFixed(6));
+       formData.append('latitude', locationPoint.lat.toFixed(6));
+    } catch (geoError) {
+       console.warn("地理编码失败:", geoError);
+       message.warn("地址解析失败，经纬度将留空");
+       // 不再 return，允许提交，让后端处理
+       // formData.append('longitude', ''); // 或者根据后端要求传空值
+       // formData.append('latitude', '');
     }
-  }, { enableHighAccuracy: true })
-}
+
+
+    console.log("准备提交的表单数据:"); // 打印查看
+    for (let pair of formData.entries()) {
+       console.log(pair[0]+ ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+    }
+
+    // --- 发送请求 ---
+    if (tData.form.id) { // 如果有 id，执行更新操作
+      await updateApi({ id: tData.form.id }, formData);
+      message.success('更新成功！');
+    } else { // 否则执行创建操作
+      await createApi(formData);
+      message.success('发布成功！等待审核');
+      // 清空表单或跳转
+      // resetForm(); // 可以添加一个清空表单的函数
+      // router.push({ name: 'portal' });
+    }
+  } catch (error) {
+    console.error("提交失败:", error);
+    // 尝试从 error 对象中获取更具体的后端错误信息
+    const errorMsg = error?.response?.data?.msg || error?.msg || error?.message || '操作失败，请稍后重试';
+    message.error(errorMsg);
+  } finally {
+    loading.value = false; // 结束加载
+  }
+};
+
+// 清空表单的函数示例
+const resetForm = () => {
+   Object.keys(tData.form).forEach(key => {
+     if (key === 'tag') {
+       tData.form[key] = [];
+     } else {
+       tData.form[key] = undefined;
+     }
+   });
+   tData.form.avatarFile = null;
+   tData.form.previewUrl = null;
+   selectedOptions.value = [];
+   fileList.value = [];
+};
+
 </script>
+
 
 <style scoped lang="less">
 @font-face {
@@ -546,5 +639,44 @@ const submit = () => {
   max-width: 238px;
 }
 
+.preview-image {
+  max-width: 100px; /* 限制预览图最大宽度 */
+  max-height: 100px; /* 限制预览图最大高度 */
+  object-fit: contain; /* 保持图片比例 */
+}
 
+.custom-uploader {
+  :deep(.ant-upload-list) {
+    display: none; /* 隐藏默认的文件列表 */
+  }
+  :deep(.ant-upload-drag) {
+     border-radius: @border-radius;
+     background: @background-color;
+     border: 1px dashed @border-color;
+     padding: 10px; /* 调整内边距 */
+     height: auto; /* 自适应高度 */
+     min-height: 120px; /* 最小高度 */
+     display: flex;
+     flex-direction: column;
+     justify-content: center;
+     align-items: center;
+  }
+   :deep(.ant-upload-drag-icon .anticon) {
+    font-size: 32px; /* 调整图标大小 */
+    color: #999;
+  }
+   :deep(.ant-upload-text) {
+    font-size: 14px;
+    color: #666;
+    margin-top: 8px;
+  }
+}
+
+.form-notice {
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  margin-top: 16px;
+  margin-left: 145px; /* 与按钮对齐 */
+}
 </style>

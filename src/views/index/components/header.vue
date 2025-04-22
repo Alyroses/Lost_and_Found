@@ -37,7 +37,6 @@
       <a-button type="link" @click="handlemap()">分布地图</a-button>
       <a-button type="link" @click="handleJoin()">发布失物信息</a-button>
       <a-button type="link" @click="foundhandel()">发布招领信息</a-button>
-
       <template v-if="userStore.user_token">
         <a-dropdown>
           <a class="ant-dropdown-link" @click="(e) => e.preventDefault()">
@@ -59,9 +58,9 @@
         <button class="login btn hidden-sm" @click="goLogin()">登录</button>
       </template>
 
-      <div class="right-icon" @click="msgVisible = true">
+      <div class="right-icon" @click="msgVisible = true ; markAsRead()">
         <img :src="MessageIcon" />
-        <span class="msg-point" style=""></span>
+        <span class="msg-point" v-if="unreadCount > 0">{{ unreadCount }}</span>
       </div>
       <div>
         <a-drawer title="消息" placement="right" :closable="true" :maskClosable="true" :visible="msgVisible"
@@ -98,7 +97,7 @@
 import { message } from 'ant-design-vue';
 import LogoIcon from '/public/lost_found_logo.png';
 import { listApi as UserListApi } from '/@/api/admin/user';
-import { listApi, noticebyidApi } from '/@/api/index/notice';
+import { listApi, noticebyidApi,noticeUnreadCountApi, markNoticeReadApi } from '/@/api/index/notice';
 import { getUserRankingApi } from '/@/api/index/user';
 import AvatarIcon from '/@/assets/images/avatar.jpg';
 import logoImage from '/@/assets/images/k-logo.png';
@@ -129,11 +128,11 @@ const data = reactive({
 });
 
 const keywordRef = ref();
-
+// 新增数据
+let unreadCount = ref(0);
 let loading = ref(false);
 let msgVisible = ref(false);
 let msgData = ref([] as any);
-
 let noticeId = userStore.user_id
 
 
@@ -169,6 +168,33 @@ const getMessageList = () => {
       console.log(err);
       loading.value = false;
     });
+};
+
+
+
+// 获取未读消息数
+const getUnreadCount = () => {
+  if (userStore.user_token) {
+    noticeUnreadCountApi({ user: userStore.user_id }).then(res => {
+      unreadCount.value = res.data.count;
+    });
+  }
+};
+
+// 标记为已读
+const markAsRead = () => {
+  markNoticeReadApi({ user: userStore.user_id }).then(() => {
+    unreadCount.value = 0;
+  });
+};
+
+// 在消息列表中，每条消息添加跳转逻辑
+const handleNoticeClick = (notice) => {
+  router.push({
+    name: 'detail',
+    query: { id: notice.thing_id },
+    hash: `#comment-${notice.comment_id}`
+  });
 };
 
 // 获取排名数据
@@ -227,7 +253,8 @@ const onClose = () => {
 const handleJoin = () => {
   let userId = userStore.user_id;
   if (userId) {
-    router.push({ name: 'jiajiaoEditView' });
+    // 使用完整路径跳转
+    router.push({ path: '/index/usercenter/jiajiaoEditView' });
   } else {
     message.warn('请先登录！');
   }
@@ -236,7 +263,8 @@ const handleJoin = () => {
 const foundhandel = () => {
   let userId = userStore.user_id;
   if (userId) {
-    router.push({ name: 'founditemView' });
+    // 使用完整路径跳转
+    router.push({ path: '/index/usercenter/founditemView' });
   } else {
     message.warn('请先登录！');
   }
