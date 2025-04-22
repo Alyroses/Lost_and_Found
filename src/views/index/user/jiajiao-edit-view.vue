@@ -1,6 +1,9 @@
 <template>
   <div class="content-list">
-    <div class="list-title">发布失物信息</div>
+    <!-- 修改标题部分，更换图标 -->
+    <div class="list-title">
+      <form-outlined class="title-icon" /> 发布失物信息
+    </div>
     <a-spin :spinning="loading" style="min-height: 200px;">
       <div class="list-content">
         <div class="edit-view">
@@ -175,7 +178,7 @@ import { createApi, listUserThingApi, updateApi } from '/@/api/index/thing';
 import { useUserStore } from "/@/store";
 import { BASE_URL } from "/@/store/constants";
 // import COS from 'cos-js-sdk-v5'; // <--- 移除 COS SDK 导入
-import { FileImageOutlined } from '@ant-design/icons-vue'; // 确保图标已导入
+import { FileImageOutlined, FormOutlined } from '@ant-design/icons-vue'; // 确保图标已导入
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -499,6 +502,19 @@ const resetForm = () => {
     border-bottom: 2px solid #eee;
     font-weight: 600;
     font-family: 'FZJZJW', -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    // 添加图标样式
+    display: flex;
+    align-items: center;
+    gap: 8px; // 图标和文字间距
+    margin-top: -15px;
+
+    .title-icon {
+      transition: transform 0.3s ease-in-out; // 添加过渡效果
+    }
+
+    &:hover .title-icon {
+      transform: rotate(360deg); // 悬停时旋转
+    }
   }
 
   .dual-column-container {

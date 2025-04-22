@@ -1,6 +1,9 @@
 <template>
     <div class="content-list">
-      <div class="list-title">发布拾物信息</div>
+      <!-- 修改标题部分，更换图标并添加 class -->
+      <div class="list-title">
+        <search-outlined class="title-icon" /> 发布拾物信息
+      </div>
       <a-spin :spinning="loading" style="min-height: 200px;">
         <div class="list-content">
           <div class="edit-view">
@@ -157,6 +160,9 @@
   import { createApi, listUserThingApi, updateApi } from '/@/api/index/thing';
   import { useUserStore } from "/@/store";
   import { BASE_URL } from "/@/store/constants";
+  // 导入图标
+  import { FileImageOutlined, SearchOutlined } from '@ant-design/icons-vue';
+
   const router = useRouter();
   const userStore = useUserStore();
   
@@ -383,6 +389,19 @@
       border-bottom: 2px solid #eee;
       font-weight: 600;
       font-family: 'FZJZJW', -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      // 添加图标样式
+      display: flex;
+      align-items: center;
+      gap: 8px; // 图标和文字间距
+
+      // 添加图标样式和动画
+      .title-icon {
+        transition: transform 0.3s ease-in-out; // 添加过渡效果
+      }
+
+      &:hover .title-icon {
+        transform: rotate(360deg); // 悬停时旋转
+      }
     }
   
     .dual-column-container {

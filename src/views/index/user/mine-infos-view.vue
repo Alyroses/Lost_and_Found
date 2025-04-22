@@ -30,14 +30,6 @@
           <img :src="SettingIconImage" alt="编辑资料" />
           <span>编辑资料</span>
         </div>
-        <div class="mine-item flex-view" @click="clickMenu('jiajiaoEditView')">
-          <img :src="SettingIconImage" alt="发布失物与招领" />
-          <span>发布失物信息</span>
-        </div>
-        <div class="mine-item flex-view" @click="clickMenu('jiajiaoEditView')">
-          <img :src="SettingIconImage" alt="发布失物与招领" />
-          <span>发布招领信息</span>
-        </div>
         <div class="mine-item flex-view" @click="clickMenu('thingEditView')">
           <img :src="SettingIconImage" alt="我的发布" />
           <span>我的发布</span>

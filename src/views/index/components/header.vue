@@ -253,8 +253,8 @@ const onClose = () => {
 const handleJoin = () => {
   let userId = userStore.user_id;
   if (userId) {
-    // 使用完整路径跳转
-    router.push({ path: '/index/usercenter/jiajiaoEditView' });
+    // 使用 name 跳转到失物信息编辑视图
+    router.push({ name: 'jiajiaoEditView' });
   } else {
     message.warn('请先登录！');
   }
@@ -263,8 +263,8 @@ const handleJoin = () => {
 const foundhandel = () => {
   let userId = userStore.user_id;
   if (userId) {
-    // 使用完整路径跳转
-    router.push({ path: '/index/usercenter/founditemView' });
+    // 使用 name 跳转到拾物信息编辑视图
+    router.push({ name: 'founditemView' });
   } else {
     message.warn('请先登录！');
   }
