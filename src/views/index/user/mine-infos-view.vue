@@ -1,7 +1,9 @@
 <template>
   <div class="mine-infos-view">
     <div class="info-box flex-view">
-      <img :src="AvatarImg" class="avatar-img" />
+      <!-- 修改：使用本地 avatarUrl ref -->
+      <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img" />
+      <img v-else :src="AvatarImg" class="avatar-img" />
       <div class="name-box">
         <h2 class="nick">{{ userStore.user_name }}</h2>
         <div class="age">
@@ -61,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import AvatarImg from '/@/assets/images/avatar.jpg';
+import AvatarImg from '/@/assets/images/avatar.jpg'; // 默认头像
 import SettingIconImage from '/@/assets/images/setting-icon.svg';
 import MessageIconImage from '/@/assets/images/setting-msg-icon.svg';
 import PushIconImage from '/@/assets/images/setting-push-icon.svg';
@@ -70,26 +72,57 @@ import SafeIconImage from '/@/assets/images/setting-safe-icon.svg';
 import { getCollectThingListApi, getWishThingListApi } from '/@/api/index/thing';
 import { useUserStore } from '/@/store'; // 确保导入用户详情接口
 import { detailApi } from '/@/api/index/user';
+import { ref, onMounted } from 'vue'; // 确保引入 ref 和 onMounted
+
 const userStore = useUserStore();
 const router = useRouter();
 
 let collectCount = ref(0);
 let wishCount = ref(0);
+// 新增：用于存储从后端获取的头像 URL 的 ref
+const avatarUrl = ref<string | undefined>(undefined);
 
 const getUserInfo = () => {
-  const userId = userStore.user_id; // 获取当前用户 ID
+  const userId = userStore.user_id;
+  if (!userId) {
+    // 如果没有用户ID，尝试从 localStorage 获取头像（如果之前存过）
+    avatarUrl.value = localStorage.getItem('user_avatar') || undefined;
+    if (!avatarUrl.value) {
+      avatarUrl.value = AvatarImg; // 最终回退到默认头像
+    }
+    return;
+  }
   detailApi({ id: userId })
     .then((res) => {
-      collectCount.value = res.data.collect_count; // 动态更新收藏数
+      collectCount.value = res.data.collect_count || 0;
+      // 将从后端获取的头像 URL 存储到本地 ref
+      avatarUrl.value = res.data.avatar;
+      console.log("Fetched avatar URL:", avatarUrl.value);
+
+      // (可选但推荐) 同时更新 userStore，保持数据同步
+      // 这需要确保 userStore.setUserInfo 方法存在且工作正常
+      try {
+        userStore.setUserInfo(res.data);
+        console.log("User store updated with fetched info.");
+      } catch (storeError) {
+        console.error("Failed to update user store:", storeError);
+      }
+
     })
     .catch((err) => {
       console.error('获取用户信息失败', err);
+      // 获取失败时也尝试从 localStorage 或使用默认头像
+      avatarUrl.value = localStorage.getItem('user_avatar') || AvatarImg;
     });
 };
 
 onMounted(() => {
-  getUserInfo(); // 获取用户信息
-  getWishThingList(); // 获取心愿单数据
+  // 移除之前的日志
+  // console.log('mine-infos-view mounted. Avatar URL from store:', userStore.user_avatar);
+  // console.log('Avatar URL from localStorage:', localStorage.getItem('user_avatar'));
+
+  getUserInfo(); // 调用修改后的函数
+  getWishThingList();
 });
 
 const clickMenu = (name: any) => {
@@ -146,6 +179,7 @@ const getWishThingList = () => {
     height: 48px;
     margin-right: 16px;
     border-radius: 50%;
+    object-fit: cover; // 确保图片不变形
   }
 
   .name-box {

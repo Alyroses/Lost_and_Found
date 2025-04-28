@@ -30,7 +30,7 @@
                         <file-image-outlined />
                       </template>
                     </p>
-                    <p class="ant-upload-text">请选择或拖拽图片到此处</p>
+                    <p class="ant-upload-text">请选择或拖拽失物图片到此处</p>
                   </a-upload-dragger>
                 </a-form-item>
               </a-col>
@@ -79,19 +79,30 @@
 
           <!-- 奖励方式 -->
           <div class="item flex-view">
-          <div class="label">积分奖励</div>
-          <div class="right-box">
-            <input 
-              type="number" 
-              v-model="tData.form.points" 
-              min="0" 
-              max="15"
-              placeholder="请输入积分数 (最多10积分)" 
-              class="input-dom"
-              @input="limitPoints"
-            >
+            <div class="label">积分奖励</div>
+            <div class="right-box reward-box">
+              <!-- 使用 a-radio-group 替换 a-select -->
+              <div class="radio-group-wrapper">
+                <a-radio-group v-model:value="rewardOption">
+                  <a-radio value="none">不设置积分</a-radio>
+                  <a-radio value="points">设置积分奖励</a-radio>
+                </a-radio-group>
+                <!-- 添加提示文字 -->
+                <span class="reward-tip">提示：积分越高展示越靠前</span>
+              </div>
+
+              <input
+                v-if="showPointsInput"
+                type="number"
+                v-model="tData.form.points"
+                min="0"
+                max="10"
+                placeholder="请输入积分 (0-10)"
+                class="input-dom points-input"
+                @input="limitPoints"
+              />
+            </div>
           </div>
-        </div>
 
           <!-- 联系人手机号 -->
           <div class="item flex-view">
@@ -102,7 +113,7 @@
                 v-model="tData.form.mobile" 
                 placeholder="请输入手机号" 
                 maxlength="11"
-                class="input-dom"
+                class="input-dom mobile-input"
               >
             </div>
           </div>
@@ -157,11 +168,17 @@
             </div>
           </div>
 
+          <!-- 同意协议部分 -->
+          <div class="terms-container">
+            <a-checkbox v-model:checked="agreedToTerms"></a-checkbox>
+            <p class="form-notice">
+              勾选表示同意《用户服务协议》，我们将在审核通过后展示您的信息
+            </p>
+          </div>
+
           <!-- 提交按钮 -->
           <button class="save mg" @click="submit()">发布</button>
-          <p class="form-notice">
-              发布即表示同意《用户服务协议》，我们将在审核通过后展示您的信息
-            </p>
+
         </div>
       </div>
     </a-spin>
@@ -177,8 +194,9 @@ import { listApi as listTagApi } from '/@/api/admin/tag';
 import { createApi, listUserThingApi, updateApi } from '/@/api/index/thing';
 import { useUserStore } from "/@/store";
 import { BASE_URL } from "/@/store/constants";
-// import COS from 'cos-js-sdk-v5'; // <--- 移除 COS SDK 导入
-import { FileImageOutlined, FormOutlined } from '@ant-design/icons-vue'; // 确保图标已导入
+import { FileImageOutlined, FormOutlined } from '@ant-design/icons-vue';
+// 引入 ref 和 watch
+import { ref, watch, reactive, onMounted } from 'vue';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -187,8 +205,15 @@ const userStore = useUserStore();
 // const cos = new COS({ ... });
 
 const selectedOptions = ref([])
-
 let loading = ref(false)
+
+// 控制积分输入框显示
+const showPointsInput = ref(false);
+// 积分奖励选项绑定
+const rewardOption = ref('none'); // 默认不设置积分
+// 同意协议状态
+const agreedToTerms = ref(false);
+
 const tData = reactive({
   tagData: [{}],
   regionDatas: regionData,
@@ -229,13 +254,28 @@ const getTagDataList = () => {
   });
 };
 
+// 监听奖励选项变化
+watch(rewardOption, (newValue) => {
+  if (newValue === 'points') {
+    showPointsInput.value = true;
+    // 可以选择在这里给一个默认值，比如 1
+    // if (tData.form.points === undefined) {
+    //   tData.form.points = 1;
+    // }
+  } else {
+    showPointsInput.value = false;
+    tData.form.points = undefined; // 重置积分为 undefined
+  }
+});
+
 // 限制积分
 const limitPoints = () => {
   if (tData.form.points > 10) {
     tData.form.points = 10;
     message.warn("积分奖励最多10分");
   } else if (tData.form.points < 0) {
-    tData.form.points = 0;
+    // 允许输入负数暂时，提交时再校验
+    // tData.form.points = 0;
   }
 };
 
@@ -337,6 +377,13 @@ const getFullAddress = () => {
 
 // --- 修改 submit 函数 ---
 const submit = async () => {
+  // --- 新增：检查是否同意协议 ---
+  if (!agreedToTerms.value) {
+    message.warn("请先阅读并勾选同意《用户服务协议》");
+    return;
+  }
+  // --- 结束新增检查 ---
+
   let formData = new FormData()
   let userId = userStore.user_id
 
@@ -353,15 +400,16 @@ const submit = async () => {
   if (!tData.form.location) {
     message.warn("地区不能为空"); return;
   }
-   if (tData.form.points === undefined || tData.form.points === null || tData.form.points < 0) { // 包含 null 检查
-    message.warn("积分奖励不能为空且不能为负数"); return;
+  // 修改积分验证：如果显示了输入框 (即 rewardOption === 'points')，则必须输入且不能小于0
+  if (showPointsInput.value && (tData.form.points === undefined || tData.form.points === null || tData.form.points < 0)) {
+    message.warn("请输入有效的积分奖励 (0-10)"); return;
   }
-  // 积分限制已在 input 事件处理
-  // if (tData.form.points > 10) { ... }
+  // 移除之前的积分验证逻辑
+  // if (tData.form.points !== undefined && tData.form.points !== null && tData.form.points < 0) { ... }
+
   if (!tData.form.description) {
     message.warn("物品描述不能为空"); return;
   }
-   // 检查是否有文件被选中（编辑时可能没有新文件）
    if (!tData.form.avatarFile && !tData.form.id) { // 创建时必须有文件
      message.warn("请上传物品图片"); return;
    }
@@ -372,7 +420,11 @@ const submit = async () => {
   formData.append('title', tData.form.title);
   formData.append('mobile', tData.form.mobile);
   formData.append('location', tData.form.location); // 省市区
-  formData.append('points', tData.form.points.toString()); // 积分
+  // 修改积分填充逻辑：如果 rewardOption 是 'points' 且值有效，则发送；否则发送 '0'
+  const pointsToSend = (rewardOption.value === 'points' && tData.form.points !== undefined && tData.form.points !== null && tData.form.points >= 0)
+                       ? tData.form.points.toString()
+                       : '0';
+  formData.append('points', pointsToSend);
   formData.append('description', tData.form.description);
   formData.append('user', userId);
   formData.append('status', '0'); // 0 代表失物信息 (寻找中)
@@ -461,6 +513,7 @@ const resetForm = () => {
    tData.form.previewUrl = null;
    selectedOptions.value = [];
    fileList.value = [];
+   agreedToTerms.value = false; // 重置同意状态
 };
 
 </script>
@@ -481,7 +534,7 @@ const resetForm = () => {
 
 @border-radius: 8px;
 @input-height: 40px;
-@spacing: 24px;
+@spacing: 21px;
 
 .content-list {
   width: 104%;
@@ -495,7 +548,7 @@ const resetForm = () => {
   transition: width 0.3s;
 
   .list-title {
-    font-size: 24px;
+    font-size: 27px;
     color: @primary-color;
     margin-bottom: 20px;
     padding-bottom: 3px;
@@ -545,13 +598,20 @@ const resetForm = () => {
       align-items: center;
       margin-bottom: @spacing;
       gap: 20px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease; // 添加过渡效果
+
+      &:hover {
+        transform: translateX(3px); // 悬停时轻微右移
+        // box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); // 可选：添加轻微阴影
+      }
 
       .label {
         width: 120px;
-        font-weight: 500;
         color: @text-color;
-        font-size: 15px;
         flex-shrink: 0;
+        font-size: 16px; // 增大字体
+        font-weight: 600; // 加粗
+        font-weight: bold;
       }
 
       .right-box {
@@ -561,50 +621,142 @@ const resetForm = () => {
         .input-dom, 
         .intro, 
         :deep(.ant-select-selector), 
+        :deep(.el-input__inner), // 兼容 el-cascader
         :deep(.ant-input) {
           width: 100%;
           padding: 8px 12px;
           border: 1px solid @border-color;
           border-radius: @border-radius;
-          transition: all 0.3s;
+          transition: all 0.3s; // 确保输入框也有过渡
           background: @background-color;
           height: @input-height;
 
           &:focus {
             border-color: @primary-color;
-            box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+            box-shadow: 0 0 0 3px fade(@primary-color, 20%); // 稍微增强 focus 效果
+            background-color: #fff; // focus 时背景变白
           }
         }
 
         .intro {
           height: 150px; // 修改高度为150px
         }
+
+        // 样式调整，让 radio group 和 input 在 reward-box 内排列
+        &.reward-box {
+          display: flex;
+          flex-direction: column; // 垂直排列
+          gap: 10px; // 保持 radio group 和 input 之间的间距
+        }
+
+        // 包裹 radio group 和提示文字的容器
+        .radio-group-wrapper {
+          display: flex;
+          align-items: center; // 垂直居中对齐
+          gap: 8px; // radio group 和提示文字的间距
+          flex-wrap: wrap; // 允许换行
+        }
+
+        // 提示文字样式
+        .reward-tip {
+          font-size: 16px;
+          color: #9c0808;
+          line-height: 32px; // 尝试与 radio button 对齐
+          font-weight: bold; // 添加加粗样式
+        }
+
+        // 可以为 Radio Group 添加一些样式 (可选)
+        :deep(.ant-radio-group) {
+           // 例如，确保按钮间距合适
+           .ant-radio-wrapper {
+             margin-right: 16px;
+             // 确保 radio button 垂直居中
+             display: inline-flex;
+             align-items: center;
+             height: 32px; // 与提示文字行高一致
+           }
+        }
+
+        // 积分输入框特定样式 (如果需要)
+        .points-input {
+          // 设置一个最大宽度来限制长度
+          max-width: 250px; // 您可以根据需要调整这个值
+          // 或者使用固定宽度
+          // width: 200px;
+        }
+
+        // 手机号输入框特定样式
+        .mobile-input {
+          max-width: 250px; // 限制手机号输入框的最大宽度
+        }
       }
 
       .title-label {
         position: relative;
-        top: -14px; // 向上移动15px
+        top: -12px; // 微调垂直位置
       }
     }
 
     .save {
       width: 100%;
       max-width: 200px;
-      margin: -7px 0 24px 145px;
+      margin: 0 0 24px 145px;
       padding: 12px;
       background: linear-gradient(135deg, @primary-color, @secondary-color);
       border-radius: @border-radius;
       color: #fff;
       font-weight: 500;
-      transition: all 0.3s;
+      transition: all 0.3s, transform 0.2s ease-out; // 优化按钮过渡
       border: none;
       cursor: pointer;
 
       &:hover {
-        opacity: 0.9;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px fade(@primary-color, 30%);
+        opacity: 0.85; // 调整悬停透明度
+        transform: translateY(-3px) scale(1.02); // 悬停时上移并轻微放大
+        box-shadow: 0 6px 15px fade(@primary-color, 35%); // 增强阴影
       }
+       &:active {
+         transform: translateY(-1px) scale(1); // 点击时效果
+         box-shadow: 0 4px 12px fade(@primary-color, 30%);
+       }
+
+      // 响应式调整
+      @media (max-width: 992px) {
+        margin-left: 0;
+      }
+      @media (max-width: 768px) {
+        margin-left: 0;
+      }
+    }
+
+    // 同意协议容器样式
+    .terms-container {
+      display: flex;
+      align-items: center;
+      gap: 8px; // 复选框和文字间距
+      margin-left: 145px; // 与按钮左侧对齐 (如果需要)
+      margin-bottom: 16px; // 在按钮上方留出间距
+
+      // 响应式调整
+      @media (max-width: 992px) {
+        margin-left: 0;
+      }
+      @media (max-width: 768px) {
+        margin-left: 0;
+        align-items: flex-start; // 小屏幕时顶部对齐
+      }
+    }
+
+    // 修改提示文字样式
+    .form-notice {
+      text-align: left; // 左对齐
+      font-size: 14px; // 稍微调大字体
+      color: #0c0c0b; // 设置为黄色 (可根据需要调整)
+      margin-top: 0; // 移除之前的 margin-top
+      margin-left: 0; // 移除之前的 margin-left
+      margin-bottom: 0; // 移除下方外边距
+      line-height: 1.5; // 调整行高以便与复选框对齐
+      font-weight: bold;
     }
   }
 }
@@ -652,7 +804,6 @@ const resetForm = () => {
 }
 .input-dom[type="number"] {
   width: 100%;
-  max-width: 238px;
 }
 
 .preview-image {

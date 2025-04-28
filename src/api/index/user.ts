@@ -29,7 +29,9 @@ const sendEmailCodeApi = async (data: any) => post<any>({ url: URL.sendEmailCode
 const qqLoginApi = async (params: any) => get<any>({ url: URL.qqLogin, params: params, withCredentials: true }); // 添加 QQ 登录的 API
 const oauthCallbackApi = async (params: any) => get<any>({ url: URL.oauthCallback, params: params, withCredentials: true }); // 添加 OAuth 回调的 API
 const updateUserPwdApi = async (params: any, data:any) => post<any>({ url: URL.updateUserPwd, params: params, data:data });
-const updateUserInfoApi = async (params: any,data: any) => post<any>({ url: URL.updateUserInfo, params:params, data: data, headers: { 'Content-Type': 'multipart/form-data;charset=utf-8' } });
+const updateUserInfoApi = async (params: any,data: any) => post<any>({ url: URL.updateUserInfo, params:params, data: data, headers: { 'Content-Type': 'multipart/form-data;charset=utf-8' } }); // Token 认证通常由 /@/utils/http/axios 中的请求拦截器自动处理。拦截器会从 userStore 或 localStorage 获取 Token 并添加到请求头 (例如 'Authorization': 'Bearer ' + token)。因此，这里通常不需要显式添加 Token。
 const getUserRankingApi = async (params: any,data: any) => get<any>({ url: URL.userRanking,params:params, data: data, headers: { 'Content-Type': 'multipart/form-data;charset=utf-8' }});
-export { detailApi, updateUserInfoApi, updateUserPwdApi, userLoginApi, userRegisterApi, sendEmailCodeApi, qqLoginApi, oauthCallbackApi ,getUserRankingApi }; // 导出 OAuth 回调的 API
+
+// 从导出中移除 getUserAvatarApi
+export { detailApi, updateUserInfoApi, updateUserPwdApi, userLoginApi, userRegisterApi, sendEmailCodeApi, qqLoginApi, oauthCallbackApi ,getUserRankingApi };
 

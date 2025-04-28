@@ -40,7 +40,9 @@
       <template v-if="userStore.user_token">
         <a-dropdown>
           <a class="ant-dropdown-link" @click="(e) => e.preventDefault()">
-            <img :src="AvatarIcon" class="self-img" />
+            <!-- 修改：根据 userStore.user_avatar 显示头像 -->
+            <img v-if="userStore.user_avatar" :src="userStore.user_avatar" class="self-img" />
+            <img v-else :src="AvatarIcon" class="self-img" />
           </a>
           <template #overlay>
             <a-menu>
@@ -143,6 +145,8 @@ onMounted(() => {
   getMessageByid();
   // getUserList();
   getUserRanking();
+  // 添加日志检查 header 中的 avatar URL
+  console.log('Header mounted. Avatar URL from store:', userStore.user_avatar);
 });
 
 const getMessageByid = () => {
@@ -426,6 +430,7 @@ const handlemap = () => {
     border-radius: 50%;
     vertical-align: middle;
     cursor: pointer;
+    object-fit: cover; // 确保头像不变形
   }
 
   .btn {

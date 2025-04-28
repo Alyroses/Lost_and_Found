@@ -7,17 +7,21 @@
         <div class="item flex-view">
           <div class="label">头像</div>
           <div class="right-box avatar-box flex-view">
-            <img v-if="tData.form && tData.form.avatar" :src="tData.form.avatar" class="avatar">
+            <!-- 显示本地预览或后端头像 -->
+            <img v-if="tData.previewUrl" :src="tData.previewUrl" class="avatar">
+            <img v-else-if="tData.form && tData.form.avatar" :src="tData.form.avatar" class="avatar">
             <img v-else :src="AvatarIcon" class="avatar">
             <div class="change-tips flex-view">
+                <!-- 移动注释到标签外部 -->
                 <a-upload
                   name="file"
                   accept="image/*"
                   :multiple="false"
+                  :show-upload-list="false"
                   :before-upload="beforeUpload"
                 >
                   <label>点击更换头像</label>
-                </a-upload>
+                </a-upload> <!-- 隐藏 antd 的列表 -->
               <p class="tip">图片格式支持 GIF、PNG、JPEG，尺寸不小于 200 PX，小于 4 MB</p>
             </div>
           </div>
@@ -59,18 +63,20 @@
 <script setup>
 import {message} from "ant-design-vue";
 import {detailApi, updateUserInfoApi} from '/@/api/index/user'
-import {BASE_URL} from "/@/store/constants";
+// import {BASE_URL} from "/@/store/constants"; // 移除 BASE_URL 引入，假设后端返回完整 URL
 import {useUserStore} from "/@/store";
 import AvatarIcon from '/@/assets/images/avatar.jpg'
+import { ref, reactive, onMounted } from 'vue'; // 确保引入 ref, reactive, onMounted
 
 const router = useRouter();
 const userStore = useUserStore();
 
 let loading = ref(false)
 let tData = reactive({
+  previewUrl: null, // 添加本地预览 URL
   form:{
-    avatar: undefined,
-    avatarFile: undefined,
+    avatar: undefined, // 后端返回的头像 URL
+    avatarFile: null, // 本地文件对象
     nickname: undefined,
     email: undefined,
     mobile: undefined,
@@ -83,22 +89,36 @@ onMounted(()=>{
 })
 
 const beforeUpload =(file)=> {
-  // 改文件名
-  const fileName = new Date().getTime().toString() + '.' + file.type.substring(6)
-  const copyFile = new File([file], fileName)
-  console.log(copyFile)
-  tData.form.avatarFile = copyFile
-  return false
+  const isImage = file.type.startsWith('image/');
+  if (!isImage) {
+    message.error('只能上传图片文件!');
+    return false;
+  }
+  const isLt4M = file.size / 1024 / 1024 < 4; // 限制大小为 4MB
+  if (!isLt4M) {
+    message.error('图片大小不能超过 4MB!');
+    return false;
+  }
+
+  // 生成本地预览 URL
+  tData.previewUrl = URL.createObjectURL(file);
+  // 保存文件对象以备提交
+  tData.form.avatarFile = file; // 直接存储原始文件
+
+  return false; // 阻止 antdv 的默认上传行为
 }
 
 const getUserInfo =()=> {
   loading.value = true
   let userId = userStore.user_id
   detailApi({id: userId}).then(res => {
-    tData.form = res.data
-    if (tData.form.avatar) {
-      tData.form.avatar = BASE_URL  + tData.form.avatar
-    }
+    // 直接使用后端返回的数据，包括 avatar URL
+    tData.form = { ...res.data, avatarFile: null }; // 合并数据并清空旧文件
+    tData.previewUrl = null; // 清空预览
+    // 移除 BASE_URL 拼接:
+    // if (tData.form.avatar) {
+    //   tData.form.avatar = BASE_URL  + tData.form.avatar
+    // }
     loading.value = false
   }).catch(err => {
     console.log(err)
@@ -108,9 +128,22 @@ const getUserInfo =()=> {
 const submit =()=> {
   let formData = new FormData()
   let userId = userStore.user_id
-  if (tData.form.avatarFile) {
-    formData.append('avatar', tData.form.avatarFile)
+
+  // 确保 userId 存在
+  if (!userId) {
+    message.error('无法获取用户信息，请重新登录');
+    return;
   }
+
+  // 将 userId 添加到 FormData
+  formData.append('user_id', userId); // 或者后端期望的其他字段名，例如 'id'
+
+  // 只有当用户选择了新文件时才添加到 FormData
+  if (tData.form.avatarFile) {
+    formData.append('avatar', tData.form.avatarFile); // 'avatar' 是后端接收文件的字段名
+  }
+
+  // 添加其他字段
   if (tData.form.nickname) {
     formData.append('nickname', tData.form.nickname)
   }
@@ -123,14 +156,52 @@ const submit =()=> {
   if (tData.form.description) {
     formData.append('description', tData.form.description)
   }
-  updateUserInfoApi({
-    id: userId
-  },formData).then(res => {
-    message.success('保存成功')
-    getUserInfo()
+
+  console.log("准备提交的用户信息 FormData:"); // 调试输出
+  for (let pair of formData.entries()) {
+     console.log(pair[0]+ ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+  }
+
+  loading.value = true; // 开始加载
+  updateUserInfoApi({ id: userId }, formData).then(res => {
+    // --- Start: Add try...catch for success handling ---
+    try {
+      message.success('保存成功'); // 显示成功消息
+
+      // 检查后端返回的数据结构是否符合预期
+      if (res && res.data) {
+          console.log("后端成功响应数据 (准备传入 store):", JSON.stringify(res.data, null, 2)); // 打印准备传入的数据
+          tData.form = { ...res.data, avatarFile: null }; // 使用返回的数据更新，并清除文件对象
+          tData.previewUrl = null; // 清除本地预览
+
+          // 尝试更新 userStore，这里可能是出错点
+          console.log("尝试更新 userStore...");
+          userStore.setUserInfo(res.data); // 调用 action 更新 store
+          console.log("userStore 更新成功");
+
+      } else {
+          console.warn("后端响应成功，但未返回有效数据，重新获取用户信息...");
+          // 如果后端没返回新数据，则重新获取
+          getUserInfo();
+      }
+    } catch (successHandlingError) {
+      // 捕获处理成功响应时发生的错误
+      console.error("处理成功响应时出错:", successHandlingError);
+      // 打印更详细的错误堆栈
+      console.error("错误堆栈:", successHandlingError.stack);
+      message.error('信息更新成功，但处理响应时遇到问题'); // 提供更具体的错误信息
+    }
+    // --- End: Add try...catch ---
+
   }).catch(err => {
-    console.log(err)
-  })
+    // 这个 catch 现在只处理 API 调用本身的失败 (网络错误, 4xx, 5xx 等)
+    console.error("API 调用失败:", err); // 使用 console.error
+    // 尝试获取更详细的错误信息
+    const errorMsg = err?.response?.data?.msg || err?.msg || err?.message || '保存失败';
+    message.error(errorMsg);
+  }).finally(() => {
+    loading.value = false; // 结束加载
+  });
 }
 
 </script>
@@ -189,6 +260,7 @@ input, textarea {
         height: 64px;
         border-radius: 50%;
         margin-right: 16px;
+        object-fit: cover; // 保持图片比例
       }
 
       .change-tips {
@@ -281,5 +353,5 @@ input, textarea {
 
 
 
- 
+
 

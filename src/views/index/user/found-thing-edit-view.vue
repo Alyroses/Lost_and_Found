@@ -29,7 +29,7 @@
                           <file-image-outlined />
                         </template>
                       </p>
-                      <p class="ant-upload-text">请选择要上传的图片</p>
+                      <p class="ant-upload-text">请选择要上传拾物的图片</p>
                     </a-upload-dragger>
                   </a-form-item>
                 </a-col>
@@ -382,7 +382,7 @@
     transition: width 0.3s;
   
     .list-title {
-      font-size: 24px;
+      font-size: 27px;
       color: @primary-color;
       margin-bottom: 20px;
       padding-bottom: 3px;
@@ -393,10 +393,11 @@
       display: flex;
       align-items: center;
       gap: 8px; // 图标和文字间距
-
+      margin-top: -15px;;
       // 添加图标样式和动画
       .title-icon {
         transition: transform 0.3s ease-in-out; // 添加过渡效果
+
       }
 
       &:hover .title-icon {
@@ -435,10 +436,10 @@
   
         .label {
           width: 120px;
-          font-weight: 500;
           color: @text-color;
-          font-size: 15px;
           flex-shrink: 0;
+          font-size: 16px; // 增大字体
+          font-weight: 600; // 加粗 (此规则已将“图片”标签加粗)
         }
   
         .right-box {
