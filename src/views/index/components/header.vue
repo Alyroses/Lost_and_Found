@@ -40,9 +40,7 @@
       <template v-if="userStore.user_token">
         <a-dropdown>
           <a class="ant-dropdown-link" @click="(e) => e.preventDefault()">
-            <!-- 修改：根据 userStore.user_avatar 显示头像 -->
-            <img v-if="userStore.user_avatar" :src="userStore.user_avatar" class="self-img" />
-            <img v-else :src="AvatarIcon" class="self-img" />
+            <img :src="AvatarIcon" class="self-img" />
           </a>
           <template #overlay>
             <a-menu>
@@ -91,16 +89,6 @@
           </a-spin>
         </a-drawer>
       </div>
-      <a-input-search
-        :placeholder="data.searchMode === 'username' ? '输入用户名搜索' : '输入昵称搜索'"
-        enter-button="查询 🔍" 
-        allowClear
-        @search="onSearch"
-        @input="handleSearchInput"
-        v-model:value="keyword"
-        class="custom-search-input"
-        style="width: 300px"
-      />
     </div>
   </div>
 </template>
@@ -137,7 +125,6 @@ const data = reactive({
   rankingList: [] as RankingItem[],
   loading: false,
   keyword: '',
-  searchMode: 'username', // Default value for searchMode
 });
 
 const keywordRef = ref();
@@ -156,8 +143,6 @@ onMounted(() => {
   getMessageByid();
   // getUserList();
   getUserRanking();
-  // 添加日志检查 header 中的 avatar URL
-  console.log('Header mounted. Avatar URL from store:', userStore.user_avatar);
 });
 
 const getMessageByid = () => {
@@ -441,7 +426,6 @@ const handlemap = () => {
     border-radius: 50%;
     vertical-align: middle;
     cursor: pointer;
-    object-fit: cover; // 确保头像不变形
   }
 
   .btn {
@@ -529,26 +513,5 @@ const handlemap = () => {
     background: rgba(255,0,0,0.1) !important;
     transform: scale(1.02);
   }
-}
-
-/* 自定义 Input Search 样式 */
-.custom-search-input {
-  // ...existing styles for .ant-input...
-  :deep(.ant-input-search-button) {
-    border-radius: 0 16px 16px 0 !important; // 按钮右侧圆角
-    background-color: #1890ff; // 按钮背景色
-    border-color: #1890ff; // 按钮边框色
-    color: #fff; // 按钮文字颜色
-    height: 32px; // 保持与 radio 一致的高度
-    transition: all 0.3s;
-    // 可能需要调整 padding 以适应图标
-    padding: 0 12px; // 调整按钮内边距
-
-    &:hover {
-      background-color: #40a9ff;
-      border-color: #40a9ff;
-    }
-  }
-  // ...existing styles for .ant-input-group-addon, .ant-input-affix-wrapper...
 }
 </style>
