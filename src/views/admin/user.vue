@@ -8,9 +8,7 @@
         <a-radio-group v-model:value="searchMode" button-style="solid" class="custom-radio-group">
           <a-radio-button value="username">用户名</a-radio-button>
           <a-radio-button value="nickname">昵称</a-radio-button>
-        </a-radio-group>
-
-        <!-- 搜索框 -->
+        </a-radi        <!-- 搜索框 -->
         <!-- 添加自定义 class -->
         <a-input-search
           :placeholder="searchMode === 'username' ? '输入用户名搜索' : '输入昵称搜索'"
@@ -350,5 +348,24 @@ const enableUser = (record: any) => {
    :deep(.ant-input-affix-wrapper) {
      border-radius: 16px 0 0 16px !important; // 确保清除按钮的 wrapper 也有圆角
    }
+9eff;
+  color: #fff; /* 图标颜色 */
+  height: 32px; /* 与查询按钮一致的高度 */
+  padding: 0 10px; /* 调整内边距以适应图标 */
+  display: inline-flex; /* 确保图标居中 */
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+
+  &:hover {
+    background-color: #66b1ff; /* 与查询按钮一致的 hover 颜色 */
+    border-color: #66b1ff;
+    color: #fff;
+  }
+
+  /* 调整图标大小 (可选) */
+  :deep(.anticon) {
+    font-size: 16px;
+  }
 }
 </style>

@@ -26,8 +26,59 @@
             </div>
           </div>
         </div>
+        <!-- 新增：性别 -->
         <div class="item flex-view">
-          <div class="label">昵称</div>
+          <div class="label">性别</div>
+          <div class="right-box">
+            <a-radio-group v-model:value="tData.form.gender" class="gender-radio-group">
+              <a-radio value="男" class="gender-male">
+                <man-outlined /> 男
+              </a-radio>
+              <a-radio value="女" class="gender-female">
+                <woman-outlined /> 女
+              </a-radio>
+              <a-radio value="不展示" class="gender-neutral">不展示</a-radio>
+            </a-radio-group>
+          </div>
+        </div>
+
+        <!-- 新增：生日 -->
+        <div class="item flex-view">
+          <div class="label">生日</div>
+          <div class="right-box">
+            <a-date-picker
+              v-model:value="tData.form.birthday"
+              placeholder="请选择生日"
+              valueFormat="YYYY-MM-DD"
+              style="width: 200px;"
+              class="input-dom"
+            />
+          </div>
+        </div>
+
+        <!-- 修改：所在地改为输入框 -->
+        <div class="item flex-view">
+          <div class="label">所在地</div>
+          <div class="right-box">
+            <input
+              type="text"
+              v-model="tData.form.location"
+              placeholder="请输入所在地，如：省/市/区"
+              maxlength="100"
+              class="input-dom"
+            />
+          </div>
+        </div>
+
+        <!-- 新增：学校 -->
+        <div class="item flex-view">
+          <div class="label">学校</div>
+          <div class="right-box">
+            <input type="text" v-model="tData.form.school" placeholder="请输入学校名称" maxlength="50" class="input-dom">
+          </div>
+        </div>
+        <div class="item flex-view">
+          <div class="label">用户名/昵称</div>
           <div class="right-box">
             <input type="text" v-model="tData.form.nickname" placeholder="请输入昵称" maxlength="20" class="input-dom">
             <p class="tip">支持中英文，长度不能超过 20 个字符</p>
@@ -63,10 +114,10 @@
 <script setup>
 import {message} from "ant-design-vue";
 import {detailApi, updateUserInfoApi} from '/@/api/index/user'
-// import {BASE_URL} from "/@/store/constants"; // 移除 BASE_URL 引入，假设后端返回完整 URL
 import {useUserStore} from "/@/store";
 import AvatarIcon from '/@/assets/images/avatar.jpg'
 import { ref, reactive, onMounted } from 'vue'; // 确保引入 ref, reactive, onMounted
+import { ManOutlined, WomanOutlined } from '@ant-design/icons-vue';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -81,6 +132,10 @@ let tData = reactive({
     email: undefined,
     mobile: undefined,
     description: undefined,
+    gender: undefined,
+    birthday: undefined,
+    location: undefined, // 直接使用文本
+    school: undefined,
   }
 })
 
@@ -115,10 +170,6 @@ const getUserInfo =()=> {
     // 直接使用后端返回的数据，包括 avatar URL
     tData.form = { ...res.data, avatarFile: null }; // 合并数据并清空旧文件
     tData.previewUrl = null; // 清空预览
-    // 移除 BASE_URL 拼接:
-    // if (tData.form.avatar) {
-    //   tData.form.avatar = BASE_URL  + tData.form.avatar
-    // }
     loading.value = false
   }).catch(err => {
     console.log(err)
@@ -155,6 +206,18 @@ const submit =()=> {
   }
   if (tData.form.description) {
     formData.append('description', tData.form.description)
+  }
+  if (tData.form.gender) {
+    formData.append('gender', tData.form.gender)
+  }
+  if (tData.form.birthday) {
+    formData.append('birthday', tData.form.birthday)
+  }
+  if (tData.form.location) {
+    formData.append('location', tData.form.location)
+  }
+  if (tData.form.school) {
+    formData.append('school', tData.form.school)
   }
 
   console.log("准备提交的用户信息 FormData:"); // 调试输出
@@ -246,7 +309,7 @@ input, textarea {
         width: 100px;
         color: #152844;
         font-weight: 600;
-        font-size: 14px;
+        font-size: 16px; // 修改：增大字体大小，例如从 14px 改为 16px
       }
 
       .right-box {
@@ -273,11 +336,11 @@ input, textarea {
 
       label {
         color: #4684e2;
-        font-size: 14px;
+        font-size: 16px; // 修改：增大字体大小，例如从 14px 改为 16px
         line-height: 22px;
         height: 22px;
         cursor: pointer;
-        width: 100px;
+        width: 120px; // 可选：适当增加宽度以适应更大的字体
         display: block;
       }
 
@@ -327,6 +390,83 @@ input, textarea {
         line-height: 22px;
         font-size: 14px;
         color: #152844;
+      }
+
+      // 确保 Radio Group 水平排列
+      :deep(.ant-radio-group) {
+        display: flex; // 强制 flex 布局 (默认行为)
+        flex-direction: row; // 明确水平方向 (默认行为)
+        flex-wrap: wrap; // 允许换行
+        gap: 8px; // 修改：减小选项之间的间距
+        align-items: center; // 垂直居中对齐 radio 和文字
+        line-height: 40px; // 与输入框对齐
+      }
+
+      // 性别 Radio Group 特定样式
+      .gender-radio-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px; // 修改：减小选项之间的间距
+        align-items: center;
+        line-height: 40px;
+
+        // 图标样式
+        .anticon {
+          margin-right: 4px; // 图标和文字间距
+          vertical-align: middle; // 垂直居中
+        }
+
+        // 新增：使女性选项始终为粉色
+        .gender-female {
+          color: #eb2f96; // 文字颜色
+          .anticon {
+            color: #eb2f96; // 图标颜色
+          }
+        }
+
+        // 选中状态颜色覆盖
+        :deep(.ant-radio-wrapper-checked) {
+          // 男性选中 - 蓝色主题
+          &.gender-male {
+            .ant-radio-inner {
+              border-color: #1890ff !important; // 边框颜色
+            }
+            .ant-radio-inner::after {
+              background-color: #1890ff !important; // 圆点颜色
+            }
+            // 可选：改变图标和文字颜色
+            color: #1890ff;
+            .anticon {
+              color: #1890ff;
+            }
+          }
+
+          // 女性选中 - 粉色主题 (保持选中时的边框和圆点颜色)
+          &.gender-female {
+            .ant-radio-inner {
+              border-color: #eb2f96 !important; // 边框颜色
+            }
+            .ant-radio-inner::after {
+              background-color: #eb2f96 !important; // 圆点颜色
+            }
+            // 选中时颜色不变 (因为已经设置了常态粉色)
+            // color: #eb2f96;
+            // .anticon {
+            //   color: #eb2f96;
+            // }
+          }
+
+          // 不展示选中 - 保持默认或灰色
+          &.gender-neutral {
+             /* 可以保持 antd 默认的 primary color 或自定义灰色 */
+             /* 例如灰色: */
+             /*
+             .ant-radio-inner { border-color: #bfbfbf !important; }
+             .ant-radio-inner::after { background-color: #bfbfbf !important; }
+             color: #595959;
+             */
+          }
+        }
       }
     }
 
