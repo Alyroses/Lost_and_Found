@@ -1,6 +1,7 @@
 <template>
     <div class="map-page">
-        <Header />
+        <!-- 添加 style 确保 Header 在最上层 -->
+        <Header style="position: relative; z-index: 1001;" />
         <div class="control-panel">
             <div class="location-info" v-if="currentAddress">
                 <span class="address-tag">📍 当前定位：</span>
@@ -27,9 +28,8 @@
 import { listApi as listThingList } from '/@/api/index/thing';
 import Header from '/@/views/index/components/header.vue';
 import Footer from '/@/views/index/components/footer.vue';
-import markerIcon from '/src/assets/icons/svg/地图标记.svg';
-
-// const DEFAULT_CENTER = { lng: 113.86689, lat: 39.915 };
+import redMarkerIcon from '/src/assets/icons/svg/red-marker.svg'; // 假设红色图标在此路径
+import greenMarkerIcon from '/src/assets/icons/svg/green-marker.svg';
 
 export default {
     components: { Footer, Header },
@@ -219,7 +219,7 @@ export default {
 
             // 创建新标记
             this.locationMarker = new BMapGL.Marker(point, {
-                icon: new BMapGL.Icon(markerIcon, new BMapGL.Size(36, 36)),
+                icon: new BMapGL.Icon(redMarkerIcon, new BMapGL.Size(36, 36)), // 使用红色图标
                 enableMassClear: false
             });
 
@@ -272,53 +272,79 @@ export default {
 
         async getThingList() {
             try {
-                const res = await listThingList();
-                this.thingData = res.data.map(item => ({
-                    lat: item.latitude,
-                    lng: item.longitude,
-                    title: item.title,
-                    location: item.location,
-                    time: item.timestamp
+                // 调用后端 API 获取失物列表
+                const res = await listThingList({ type: 'lost' }); // 假设可以按类型筛选失物
+                // 确保后端返回的数据包含所需字段，包括嵌套的 user 信息
+                this.thingData = res.data.filter(item => item.longitude && item.latitude).map(item => ({
+                    lat: parseFloat(item.latitude),
+                    lng: parseFloat(item.longitude),
+                    title: item.title || '无标题',
+                    location: item.location || '未知地点',
+                    description: item.description || '无描述',
+                    cover: item.cover, // 图片 URL
+                    mobile: item.mobile || '未提供', // 联系电话
+                    // 处理用户信息，优先用 nickname，否则用 username
+                    userNickname: item.user?.nickname || item.user?.username || '匿名用户',
+                    id: item.id
                 }));
-                this.addMarkers();
+                console.log("Fetched and processed thing data for markers:", this.thingData); // 调试日志
+                this.addMarkers(); // 获取数据后添加标记
             } catch (error) {
-                console.error('数据获取失败:', error);
+                console.error('获取失物数据失败:', error);
+                // this.$message.error('加载失物信息失败，请稍后重试');
             }
         },
 
         addMarkers() {
-            this.clearAllMarkers();
-            
+            this.clearAllMarkers(); // 清除旧的失物标记
+
+            if (!this.thingData || this.thingData.length === 0) {
+                console.log("没有失物数据可供标记");
+                return;
+            }
+
             this.thingData.forEach(data => {
+                if (isNaN(data.lng) || isNaN(data.lat)) {
+                    console.warn("无效的经纬度，跳过标记:", data);
+                    return;
+                }
+
                 const point = new BMapGL.Point(data.lng, data.lat);
                 const marker = new BMapGL.Marker(point, {
-                    icon: new BMapGL.Icon(markerIcon, new BMapGL.Size(32, 32))
+                    icon: new BMapGL.Icon(greenMarkerIcon, new BMapGL.Size(32, 32))
                 });
-                
+
                 marker.addEventListener('click', () => {
+                    // *** 修改：构建包含用户昵称、电话、图片和描述的信息窗口内容 ***
                     const content = `
-                        <div class="info-window">
+                        <div class="info-window thing-info-window">
                             <h3>${data.title}</h3>
+                            ${data.cover ? `<img src="${data.cover}" alt="${data.title}" class="info-window-cover" >` : '<p class="no-cover">暂无图片</p>'}
                             <p class="location">📍 ${data.location}</p>
+                            <p class="description">${data.description}</p>
                             <div class="details">
-                                <p><strong>经度:</strong> ${data.lng.toFixed(6)}</p>
-                                <p><strong>纬度:</strong> ${data.lat.toFixed(6)}</p>
-                                ${data.time ? `<p><strong>时间:</strong> ${new Date(data.time).toLocaleString()}</p>` : ''}
+                                <p><strong>发布者:</strong> ${data.userNickname}</p>
+                                <p><strong>联系电话:</strong> ${data.mobile}</p>
                             </div>
+                            <!-- 可以添加查看详情按钮，需要后端提供物品详情页路由和 ID -->
+                            <button onclick="viewDetail(${data.id})">查看详情</button> 
                         </div>
                     `;
-                    
+
+                    // *** 修改：移除固定的 height 选项 ***
                     const infoWindow = new BMapGL.InfoWindow(content, {
                         width: 280,
-                        title: '物品详情'
+                        // height: 240, // 移除固定高度
+                        title: '失物详情' // 这个 title 是 BMapGL InfoWindow 的标题，不是 HTML 里的 h3
                     });
-                    
+
                     this.map.openInfoWindow(infoWindow, point);
                 });
 
                 this.markers.push(marker);
                 this.map.addOverlay(marker);
             });
+            console.log(`添加了 ${this.markers.length} 个失物标记`);
         },
 
         clearExistingMarker() {
@@ -391,6 +417,7 @@ export default {
     background: #fff;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     z-index: 1000;
+    position: relative; /* 使 z-index 生效 */
 }
 
 .location-info {
@@ -473,6 +500,65 @@ export default {
     .details {
         margin-top: 8px;
         color: #666;
+    }
+}
+
+:deep(.thing-info-window) {
+    max-height: 250px; /* 设置一个最大高度，例如 250px */
+    overflow-y: auto;  /* 允许垂直滚动 */
+    padding-right: 5px; /* 为滚动条留出一点空间 */
+
+    h3 { /* content 内部的标题 */
+        margin: 0 0 8px;
+        color: #333;
+        font-size: 16px;
+        position: sticky; /* 让标题在滚动时置顶 */
+        top: -1px; /* 微调位置，防止被边框遮挡 */
+        background: white;
+        padding-bottom: 5px;
+        z-index: 1;
+    }
+
+    .info-window-cover {
+        /* 修改：设置指定的宽度和高度 */
+        width: 241px;
+        height: 150px;
+        object-fit: cover; /* 保持 cover 以填充区域，可能会裁剪 */
+        margin-bottom: 8px;
+        border-radius: 4px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .no-cover {
+        color: #999;
+        font-style: italic;
+        text-align: center;
+        margin-bottom: 8px;
+        /* 修改：匹配新的图片高度 */
+        height: 150px;
+        line-height: 150px;
+    }
+    .location {
+        color: #409eff;
+        font-weight: 500;
+        margin-bottom: 5px;
+        font-size: 14px; /* 稍大一点 */
+    }
+    .description {
+        font-size: 13px;
+        color: #555;
+        margin-top: 5px;
+        margin-bottom: 10px;
+        line-height: 1.5;
+    }
+    .details {
+        margin-top: 8px;
+        color: #666;
+        font-size: 13px;
+        p {
+            margin: 3px 0;
+        }
     }
 }
 </style>

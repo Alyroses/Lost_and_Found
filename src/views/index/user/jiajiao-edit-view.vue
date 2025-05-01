@@ -281,21 +281,13 @@ const limitPoints = () => {
 
 //获取地点
 const handleChange = () => {
-  if (selectedOptions.value.length === 3) {
-    const province = codeToText[selectedOptions.value[0]];
-    const city = codeToText[selectedOptions.value[1]];
-    const district = codeToText[selectedOptions.value[2]];
-    const directMunicipalities = ["北京市", "上海市", "天津市", "重庆市"];
-    let regionText = "";
-    if (directMunicipalities.includes(province)) {
-      regionText = province + district;
-    } else {
-      regionText = province + city + district;
-    }
-    tData.form.location = regionText;
+  if (selectedOptions.value && selectedOptions.value.length > 0) {
+    // 将编码转换为文本，使用 '/' 分隔符，更符合常见地址格式
+    tData.form.location = selectedOptions.value.map(code => codeToText[code]).join('/');
   } else {
-     tData.form.location = undefined; // 清空地区如果选择不完整
+    tData.form.location = undefined; // 清空地区如果选择不完整
   }
+  console.log("Selected Region Text:", tData.form.location);
 };
 
 // --- 修改 beforeUpload ---
@@ -334,33 +326,39 @@ const getCDataList = () => {
 
 //地址经纬度解析
 const getGeoLocation = () => {
-  // 确保 BMapGL 已加载
-  if (!window.BMapGL || !window.BMapGL.Geocoder) {
-     message.error("地图服务未加载，无法解析地址");
-     return Promise.reject("地图服务未加载");
-  }
-  const myGeo = new BMapGL.Geocoder();
-  const fullAddress = getFullAddress(); // 使用辅助函数获取完整地址
-   if (!fullAddress) {
-     return Promise.reject("地址信息不完整");
-   }
   return new Promise((resolve, reject) => {
+    // 确保 BMapGL 已加载
+    if (!window.BMapGL || !window.BMapGL.Geocoder) {
+      message.error("地图服务未加载，无法解析地址");
+      return reject("地图服务未加载");
+    }
+
+    const myGeo = new BMapGL.Geocoder();
+    const regionAddress = tData.form.location; // 省/市/区 文本
+    const detailAddress = tData.form.detailLocation || ''; // 详细地址
+    const fullAddress = regionAddress ? (regionAddress + (detailAddress ? '/' + detailAddress : '')) : detailAddress; // 优先组合地址
+
+    if (!fullAddress) {
+      console.warn("地址信息不完整，无法进行地理编码");
+      // 地址不完整时，可以选择返回 null 或 reject
+      // return resolve(null); // 返回 null，让 submit 函数决定如何处理
+      return reject("地址信息不完整"); // 或者直接 reject
+    }
+
+    console.log("Attempting to geocode address:", fullAddress);
+    // 提供城市信息给API以提高精度，尝试从 regionAddress 中提取市级信息
+    const cityHint = regionAddress ? regionAddress.split('/')[1] || regionAddress.split('/')[0] : "全国";
+
     myGeo.getPoint(fullAddress, (point) => {
       if (point) {
+        console.log(`地址 "${fullAddress}" 解析成功:`, point);
         resolve({ lng: point.lng, lat: point.lat });
       } else {
-        // 尝试仅使用省市区进行解析
-        myGeo.getPoint(tData.form.location, (pointFallback) => {
-           if (pointFallback) {
-             console.warn(`详细地址 "${fullAddress}" 解析失败，已回退到省市区解析`);
-             resolve({ lng: pointFallback.lng, lat: pointFallback.lat });
-           } else {
-             console.error(`地址 "${fullAddress}" 及省市区 "${tData.form.location}" 均无法解析`);
-             reject(`无法解析地址: ${fullAddress}`);
-           }
-        });
+        console.error(`地址 "${fullAddress}" 无法解析`);
+        // 地址解析失败，reject Promise
+        reject(`无法解析地址: ${fullAddress}`);
       }
-    }, tData.form.location || "全国"); // 提供城市信息以提高精度
+    }, cityHint); // 提供城市信息以提高精度
   });
 };
 
@@ -368,22 +366,19 @@ const getGeoLocation = () => {
 const getFullAddress = () => {
   let address = tData.form.location || '';
   if (tData.form.detailLocation) {
-    // 简单拼接，后端可以进一步处理去重等逻辑
-    address += tData.form.detailLocation;
+    address += '/' + tData.form.detailLocation; // 使用 / 分隔
   }
   return address.trim();
 };
 
 
-// --- 修改 submit 函数 ---
+// --- 优化 submit 函数 ---
 const submit = async () => {
   // --- 新增：检查是否同意协议 ---
   if (!agreedToTerms.value) {
     message.warn("请先阅读并勾选同意《用户服务协议》");
     return;
   }
-  // --- 结束新增检查 ---
-
   let formData = new FormData()
   let userId = userStore.user_id
 
@@ -413,9 +408,6 @@ const submit = async () => {
    if (!tData.form.avatarFile && !tData.form.id) { // 创建时必须有文件
      message.warn("请上传物品图片"); return;
    }
-   // --- 结束表单验证 ---
-
-
   // --- 填充表单数据 ---
   formData.append('title', tData.form.title);
   formData.append('mobile', tData.form.mobile);
@@ -459,26 +451,43 @@ const submit = async () => {
 
   loading.value = true; // 开始加载
 
+  let locationPoint = null; // 用于存储解析的坐标
+
+  // --- 1. 尝试获取经纬度 ---
   try {
-    // 尝试解析经纬度，如果失败则不阻塞提交，后端可以再次尝试或留空
-    try {
-       const locationPoint = await getGeoLocation();
-       formData.append('longitude', locationPoint.lng.toFixed(6));
-       formData.append('latitude', locationPoint.lat.toFixed(6));
-    } catch (geoError) {
-       console.warn("地理编码失败:", geoError);
-       message.warn("地址解析失败，经纬度将留空");
-       // 不再 return，允许提交，让后端处理
-       // formData.append('longitude', ''); // 或者根据后端要求传空值
-       // formData.append('latitude', '');
-    }
+    locationPoint = await getGeoLocation(); // 调用地理编码函数
+    console.log("Geocoding successful:", locationPoint);
+  } catch (geoError) {
+    // ... existing geoError handling ...
+    loading.value = false; // 停止加载
+    return; // 阻止提交
+  }
 
+  // --- 2. 填充基础表单数据 ---
+  // ... existing code to append basic data ...
 
-    console.log("准备提交的表单数据:"); // 打印查看
-    for (let pair of formData.entries()) {
-       console.log(pair[0]+ ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
-    }
+  // --- 3. 添加经纬度 (如果获取成功) ---
+  if (locationPoint && typeof locationPoint.lng === 'number' && typeof locationPoint.lat === 'number') {
+    // --- 添加日志：查看即将添加到 FormData 的经纬度 ---
+    console.log(`Appending longitude: ${locationPoint.lng.toFixed(6)}`);
+    console.log(`Appending latitude: ${locationPoint.lat.toFixed(6)}`);
+    // --- 结束日志 ---
+    formData.append('longitude', locationPoint.lng.toFixed(6)); // 保留6位小数
+    formData.append('latitude', locationPoint.lat.toFixed(6)); // 保留6位小数
+  } else {
+     // ... existing handling for invalid locationPoint ...
+  }
 
+  // --- 4. 添加图片文件 ---
+  // ... existing code to append image file ...
+
+  // --- 5. 发送请求 ---
+  console.log("准备提交的表单数据:");
+  for (let pair of formData.entries()) {
+    console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+  }
+
+  try {
     // --- 发送请求 ---
     if (tData.form.id) { // 如果有 id，执行更新操作
       await updateApi({ id: tData.form.id }, formData);
