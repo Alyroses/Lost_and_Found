@@ -21,6 +21,18 @@
           class="custom-search-input"
           style="width: 300px"
         />
+        <!-- 新增：状态筛选框 -->
+        <a-select
+          v-model:value="filterStatus"
+          placeholder="筛选状态"
+          style="width: 120px; margin-left: 8px;"
+          @change="handleFilterChange"
+          allowClear
+        >
+          <a-select-option value="">全部</a-select-option>
+          <a-select-option value="0">正常</a-select-option>
+          <a-select-option value="1">封号</a-select-option>
+        </a-select>
         <!-- 新增：刷新按钮 -->
         <a-button @click="getUserList()" class="refresh-button">
           <template #icon><ReloadOutlined /></template>
@@ -96,7 +108,7 @@
 
 <script setup lang="ts">
 import { listApi, updateApi } from '/@/api/admin/user';
-import { message } from 'ant-design-vue';
+import { message, SelectProps } from 'ant-design-vue'; // 引入 SelectProps (如果需要更强的类型定义)
 import type { ColumnType } from 'ant-design-vue/es/table';
 import { ref, reactive, onMounted } from 'vue';
 import { debounce } from 'lodash-es';
@@ -107,17 +119,27 @@ import { UserOutlined, ReloadOutlined, StopOutlined, CheckCircleOutlined } from 
 // const searchMode = ref<'username' | 'nickname'>('username');
 // 关键词
 const keyword = ref('');
+// 新增：筛选状态 ref，初始为 '全部'
+const filterStatus = ref<string>(''); // 使用空字符串代表全部
 
 // 防抖处理（500ms延迟）
 const handleSearchInput = debounce(() => {
-  onSearch();
+  onSearch(); // 防抖触发时也进行搜索
 }, 500);
 
-// 执行搜索
+// 执行搜索 (包含关键词和状态)
 const onSearch = () => {
-  // 移除了 searchType
   getUserList({
     keyword: keyword.value,
+    status: filterStatus.value, // 传递当前状态
+  });
+};
+
+// 新增：处理筛选状态变化
+const handleFilterChange = () => {
+  getUserList({
+    keyword: keyword.value, // 保留当前关键词
+    status: filterStatus.value, // 传递新的状态
   });
 };
 
@@ -182,14 +204,26 @@ const data = reactive({
 });
 
 onMounted(() => {
-  getUserList();
+  // 初始加载也包含状态筛选
+  getUserList({ status: filterStatus.value });
 });
 
-const getUserList = (params = {}) => {
+// 修改：getUserList 接受 status 参数
+const getUserList = (params: { keyword?: string; status?: string } = {}) => {
   data.loading = true;
-  // 清空关键词进行刷新，或者根据需要保留
-  // keyword.value = ''; // 如果希望刷新时清空搜索词，取消此行注释
-  listApi({ ...params, keyword: keyword.value }) // 保持传递 keyword
+  // 准备传递给 API 的参数
+  const apiParams: Record<string, any> = {
+    keyword: params.keyword !== undefined ? params.keyword : keyword.value, // 使用传入的或当前的 keyword
+  };
+  // 只有当 status 不是空字符串时才添加到参数中
+  if (params.status !== undefined && params.status !== '') {
+    apiParams.status = params.status;
+  } else if (filterStatus.value !== '') { // 如果函数调用没传status，但全局filterStatus有值
+     apiParams.status = filterStatus.value;
+  }
+
+
+  listApi(apiParams) // 传递处理后的参数
     .then((res) => {
       data.loading = false;
       res.data.forEach((item: any, index: any) => {
@@ -200,6 +234,8 @@ const getUserList = (params = {}) => {
     .catch((err) => {
       data.loading = false;
       console.error(err);
+      // 可以添加错误提示
+      message.error('获取用户列表失败');
     });
 };
 
@@ -389,6 +425,14 @@ const enableUser = (record: any) => {
 
   &:hover {
     background-color: #69c0ff; /* 设置悬停时的背景色 */
+  }
+}
+
+/* 可以为 Select 组件添加一些样式调整 */
+:deep(.ant-select) {
+  /* 例如调整圆角使其与其他组件协调 */
+  .ant-select-selector {
+    border-radius: 6px !important;
   }
 }
 </style>
