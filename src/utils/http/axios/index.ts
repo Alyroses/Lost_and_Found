@@ -16,8 +16,9 @@ const service: AxiosInstance = axios.create({
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
 
+    // 这行代码正是后端所期望的
     config.headers.ADMINTOKEN = localStorage.getItem(ADMIN_USER_TOKEN)
-    config.headers.TOKEN = localStorage.getItem(USER_TOKEN)
+    config.headers.TOKEN = localStorage.getItem(USER_TOKEN) // 这个用于普通用户或其他接口
 
     return config;
   },

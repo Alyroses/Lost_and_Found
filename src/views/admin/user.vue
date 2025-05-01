@@ -2,17 +2,18 @@
   <div class="user-management-container">
     <!-- 搜索框 -->
     <div class="table-operations">
-      <a-space size="middle"> <!-- 增加间距 -->
-        <!-- 搜索模式切换 -->
-        <!-- 添加自定义 class -->
-        <a-radio-group v-model:value="searchMode" button-style="solid" class="custom-radio-group">
-          <a-radio-button value="username">用户名</a-radio-button>
-          <a-radio-button value="nickname">昵称</a-radio-button>
-        </a-radi        <!-- 搜索框 -->
-        <!-- 添加自定义 class -->
+      <!-- 移除外层 search-container -->
+      <!-- 修改 a-space，添加 align="center" -->
+      <a-space size="middle" align="center">
+        <!-- 用户名标签移到 a-space 内部 -->
+        <div class="search-label">
+          <span>用户名</span>
+          <span style="margin-left: 4px;">🔍</span>
+        </div>
+        <!-- 输入框 -->
         <a-input-search
-          :placeholder="searchMode === 'username' ? '输入用户名搜索' : '输入昵称搜索'"
-          enter-button="查询" 
+          placeholder="输入用户名搜索"
+          enter-button="查询"
           allowClear
           @search="onSearch"
           @input="handleSearchInput"
@@ -20,6 +21,11 @@
           class="custom-search-input"
           style="width: 300px"
         />
+        <!-- 新增：刷新按钮 -->
+        <a-button @click="getUserList()" class="refresh-button">
+          <template #icon><ReloadOutlined /></template>
+          刷新
+        </a-button>
       </a-space>
     </div>
 
@@ -58,8 +64,11 @@
             cancel-text="否"
             @confirm="disableUser(record)"
           >
-            <!-- 修改：使用 danger 按钮 -->
-            <a-button type="primary" danger size="small">禁用</a-button>
+            <!-- 修改：使用 danger 按钮并添加图标 -->
+            <a-button type="primary" danger size="small">
+              <template #icon><StopOutlined /></template>
+              禁用
+            </a-button>
           </a-popconfirm>
           <a-popconfirm
             v-else
@@ -68,8 +77,11 @@
             cancel-text="否"
             @confirm="enableUser(record)"
           >
-            <!-- 修改：使用 primary 或 default 按钮 -->
-            <a-button type="primary" size="small">解除禁用</a-button>
+            <!-- 修改：使用 primary 按钮并添加图标 -->
+            <a-button type="primary" size="small">
+              <template #icon><CheckCircleOutlined /></template>
+              解除禁用
+            </a-button>
           </a-popconfirm>
         </template>
         <template v-else-if="column.key === 'status'">
@@ -88,10 +100,11 @@ import { message } from 'ant-design-vue';
 import type { ColumnType } from 'ant-design-vue/es/table';
 import { ref, reactive, onMounted } from 'vue';
 import { debounce } from 'lodash-es';
-import { UserOutlined } from '@ant-design/icons-vue'; // 引入图标
+// 引入图标
+import { UserOutlined, ReloadOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons-vue';
 
-// 搜索模式
-const searchMode = ref<'username' | 'nickname'>('username');
+// 移除了 searchMode ref
+// const searchMode = ref<'username' | 'nickname'>('username');
 // 关键词
 const keyword = ref('');
 
@@ -102,8 +115,8 @@ const handleSearchInput = debounce(() => {
 
 // 执行搜索
 const onSearch = () => {
+  // 移除了 searchType
   getUserList({
-    searchType: searchMode.value,
     keyword: keyword.value,
   });
 };
@@ -130,12 +143,7 @@ const columns: ColumnType<any>[] = reactive([
     key: 'username',
     align: 'center',
   },
-  {
-    title: '昵称',
-    dataIndex: 'nickname',
-    key: 'nickname',
-    align: 'center',
-  },
+
   {
     title: '邮箱',
     dataIndex: 'email',
@@ -179,7 +187,9 @@ onMounted(() => {
 
 const getUserList = (params = {}) => {
   data.loading = true;
-  listApi({ ...params, keyword: keyword.value })
+  // 清空关键词进行刷新，或者根据需要保留
+  // keyword.value = ''; // 如果希望刷新时清空搜索词，取消此行注释
+  listApi({ ...params, keyword: keyword.value }) // 保持传递 keyword
     .then((res) => {
       data.loading = false;
       res.data.forEach((item: any, index: any) => {
@@ -196,7 +206,7 @@ const getUserList = (params = {}) => {
 const disableUser = (record: any) => {
   const formData = new FormData();
   formData.append('id', record.id);
-  formData.append('role', '3'); // 设置角色为演示账号
+  formData.append('role', '1'); // 修改：设置角色为管理员 (或者保持原角色不变，仅修改状态)
   formData.append('status', '1'); // 设置状态为封号
 
   updateApi({ id: record.id }, formData)
@@ -240,7 +250,10 @@ const enableUser = (record: any) => {
   margin-bottom: 24px; // 增加搜索区域和表格的间距
   display: flex; // 使用 flex 布局
   justify-content: flex-start; // 左对齐
-  align-items: center; // 垂直居中对齐
+  /* 可选：如果希望标签与输入框左对齐，移除或注释掉 align-items: center */
+  /* align-items: center; */
+  /* 确保垂直居中 */
+  align-items: center;
 }
 
 .user-table {
@@ -270,102 +283,112 @@ const enableUser = (record: any) => {
 :deep(.ant-table-cell) {
   .ant-btn {
     margin: 0 4px; // 给按钮之间添加一些间距
+    border-radius: 10px; /* 新增：为按钮添加圆角 */
   }
 }
 
-/* 自定义 Radio Group 样式 */
-.custom-radio-group {
-  :deep(.ant-radio-button-wrapper) {
-    border-radius: 16px !important; // 设置圆角
-    border: 1px solid #e0e0e0; // 统一边框颜色
-    color: #555; // 默认文字颜色
-    background-color: #fff; // 默认背景
-    transition: all 0.3s; // 添加过渡效果
+/* 移除了 .custom-radio-group 样式 */
 
-    &:first-child {
-      border-radius: 16px 0 0 16px !important; // 左侧按钮圆角
-    }
-    &:last-child {
-      border-radius: 0 16px 16px 0 !important; // 右侧按钮圆角
-    }
-    &:not(:first-child)::before {
-       display: none; // 移除按钮间的分割线
-    }
+/* 移除 .search-container 样式 */
+/* .search-container { ... } */
 
-    &:hover {
-      // 修改 hover 颜色
-      color: #feb47b; // 登录按钮渐变色之二
-      border-color: #feb47b;
-    }
-  }
-
-  :deep(.ant-radio-button-wrapper-checked) {
-    // 修改选中背景色和边框色
-    background-color: #ff7e5f; // 登录按钮渐变色之一
-    border-color: #ff7e5f !important; // 选中边框色
-    color: #fff !important; // 选中文字颜色
-    box-shadow: -1px 0 0 0 #ff7e5f; // 覆盖阴影
-
-     &:hover {
-       color: #fff !important;
-       // 修改选中 hover 颜色
-       border-color: #feb47b !important;
-       background-color: #feb47b;
-     }
-  }
+/* 修改：用户名标签样式 */
+.search-label {
+  display: inline-flex; /* 使其宽度自适应内容 */
+  align-items: center; /* 垂直居中 */
+  padding: 4px 10px; /* 内边距 */
+  background-color: #ff7e5f; /* 橙色背景 (与按钮颜色一致) */
+  color: #fff; /* 白色文字 */
+  border-radius: 12px; /* 圆角 */
+  font-size: 12px; /* 字体大小 */
+  /* 移除 margin-top */
+  /* margin-top: 8px; */
+  margin-right: 8px; /* 添加右边距 */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* 可选：添加轻微阴影 */
+  /* 确保高度与输入框协调 */
+  height: 32px; /* 与输入框高度一致 */
+  box-sizing: border-box; /* 包含 padding 和 border */
 }
 
 /* 自定义 Input Search 样式 */
 .custom-search-input {
   :deep(.ant-input) {
-    border-radius: 16px 0 0 16px !important; // 输入框左侧圆角
-    border-color: #e0e0e0; // 统一边框颜色
-    height: 32px; // 保持与 radio 一致的高度
+    /* 移除输入框本身的圆角设置，由 wrapper 控制 */
+    /* border-radius: 6px 0 0 6px !important; */
+    border-color: #e0e0e0;
+    height: 32px;
     &:focus, &:hover {
-       border-color: #1890ff; // 保持 Antd 默认的 focus 蓝色
-       box-shadow: none; // 移除默认的 focus 阴影
+       border-color: #1890ff;
+       box-shadow: none;
     }
+    /* 确保输入框右侧没有边框，避免与按钮重叠 */
+    border-right: none;
   }
   :deep(.ant-input-search-button) {
-    border-radius: 0 16px 16px 0 !important; // 按钮右侧圆角
-    // 修改按钮背景色和边框色
-    background-color: #ff7e5f; // 登录按钮渐变色之一
-    border-color: #ff7e5f; // 按钮边框色
-    color: #fff; // 按钮文字颜色
-    height: 32px; // 保持与 radio 一致的高度
+    border-radius: 0 6px 6px 0 !important; /* 修改：设置按钮右侧圆角 */
+    background-color: #ff7e5f;
+    border-color: #ff7e5f;
+    color: #fff;
+    height: 32px;
     transition: all 0.3s;
+    /* 确保按钮左侧没有边框 */
+    border-left: none;
 
     &:hover {
-      // 修改按钮 hover 颜色
-      background-color: #feb47b; // 登录按钮渐变色之二
+      background-color: #feb47b;
       border-color: #feb47b;
     }
   }
-  // 移除输入框和按钮之间的边框
   :deep(.ant-input-group-addon) {
      display: none;
   }
    :deep(.ant-input-affix-wrapper) {
-     border-radius: 16px 0 0 16px !important; // 确保清除按钮的 wrapper 也有圆角
+     border-radius: 6px 0 0 6px !important; /* 修改：设置 wrapper 左侧圆角 */
+     border-color: #e0e0e0;
+     /* 确保 wrapper 右侧没有边框 */
+     border-right: none;
+     &:focus-within, &:hover {
+        border-color: #1890ff !important;
+        box-shadow: none;
+        /* 确保 focus/hover 时右侧边框也不显示 */
+        border-right: none !important;
+        /* 使用 z-index 确保 wrapper 在按钮下方，避免边框覆盖 */
+        z-index: 1;
+     }
    }
-9eff;
-  color: #fff; /* 图标颜色 */
-  height: 32px; /* 与查询按钮一致的高度 */
-  padding: 0 10px; /* 调整内边距以适应图标 */
-  display: inline-flex; /* 确保图标居中 */
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
+   /* 整体设置圆角，覆盖内部元素的具体设置 */
+   border-radius: 18px;
+   overflow: hidden; /* 确保子元素的角被裁剪 */
+   display: inline-flex; /* 使其表现像一个整体 */
+   border: 2px solid #e0e0e0; /* 添加外部边框 */
+
+   &:hover, &:focus-within {
+      border-color: #1890ff; /* 整体 hover/focus 边框颜色 */
+   }
+
+   /* 覆盖内部元素的边框，因为外部已经有边框了 */
+   :deep(.ant-input-affix-wrapper),
+   :deep(.ant-input-search-button) {
+       border: none !important;
+   }
+   /* 调整按钮的 z-index，确保在 focus 时边框正确显示 */
+    :deep(.ant-input-search-button) {
+        position: relative;
+        z-index: 2;
+    }
+}
+
+/* 新增：刷新按钮样式 */
+.refresh-button {
+  margin-left: 8px; /* 添加左边距 */
+  border-radius: 6px; /* 与输入框按钮协调 */
+  border: none; /* 移除边框 */
+  background-color: #40a9ff; /* 设置背景色 (Ant Design 主蓝色) */
+  color: #fff; /* 设置文字颜色为白色 */
+  transition: background-color 0.3s; /* 添加过渡效果 */
 
   &:hover {
-    background-color: #66b1ff; /* 与查询按钮一致的 hover 颜色 */
-    border-color: #66b1ff;
-    color: #fff;
-  }
-
-  /* 调整图标大小 (可选) */
-  :deep(.anticon) {
-    font-size: 16px;
+    background-color: #69c0ff; /* 设置悬停时的背景色 */
   }
 }
 </style>
