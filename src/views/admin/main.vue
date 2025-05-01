@@ -1,9 +1,11 @@
 <template>
   <a-layout id="components-layout-demo-custom-trigger">
-    <a-layout-header style="background: #ae507836; padding: 0">
+    <!-- 修改 Header 背景色和内边距 -->
+    <a-layout-header style="background: #fff; padding: 0 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
       <div class="header">
         <img class="header-logo" :src="logo" />
-        <span class="header-title" style="color:rgba(253, 164, 69, 0.59);">失物招领后台管理系统</span>
+        <!-- 修改标题颜色 -->
+        <span class="header-title" style="color:#c46e5b;">失物招领后台管理系统</span>
         <div class="empty"></div>
         <a-button style="margin-right: 24px" @click="handlePreview" class="header-button">
           <eye-outlined class="header-icon" />前台预览
@@ -26,11 +28,12 @@
       </div>
     </a-layout-header>
     <a-layout>
-      <a-layout-sider v-model="collapsed" collapsible>
+      <!-- 修改 Sider 背景色 -->
+      <a-layout-sider v-model="collapsed" collapsible style="background: #fffaf5;">
         <a-menu
           style="overflow: auto; overflow-x: hidden"
           v-model:selectedKeys="selectedKeys"
-          theme="light"
+          theme="light" 
           mode="inline"
           @click="handleClick"
         >
@@ -90,7 +93,7 @@
           </a-menu-item>
         </a-menu>
       </a-layout-sider>
-      <a-layout-content :style="{ margin: '16px 16px', minHeight: '200px' }">
+      <a-layout-content :style="{ margin: '16px 16px', minHeight: '200px', background: '#f0f2f5' }"> <!-- 添加内容区背景色 -->
         <router-view />
       </a-layout-content>
     </a-layout>
@@ -151,8 +154,9 @@ import { useUserStore } from '/@/store';
     display: flex;
     flex-direction: row;
     align-items: center; // 垂直居中
-    padding-left: 24px;
-    padding-right: 24px;
+    // 移除内边距，因为已在 a-layout-header 设置
+    // padding-left: 24px;
+    // padding-right: 24px;
 
     .header-logo {
       width: 32px;
@@ -165,6 +169,7 @@ import { useUserStore } from '/@/store';
       font-size: 20px;
       font-weight: bold;
       text-align: center;
+      // color 已在 template 中设置
     }
 
     .header-button {
@@ -254,41 +259,43 @@ import { useUserStore } from '/@/store';
   }
 
   :deep(.ant-layout-sider) {
-    padding: 0;
-    background-color: #fadfbb;
+    // padding: 0; // 移除内边距，让菜单占满
+    // background-color: #fadfbb; // 移除旧背景色
     transition: background-color 0.3s;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05); // 添加右侧阴影
   }
 
   :deep(.ant-menu) {
     padding-top: 16px;
     height: 100%;
-    background-color: transparent;
+    background-color: transparent; // 继承 Sider 背景
     border-right: none;
 
     .ant-menu-item,
     .ant-menu-submenu-title {
-      color: #555;
+      color: #555; // 默认文字颜色
       margin: 4px 8px;
       width: calc(100% - 16px);
       border-radius: 6px;
       transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
 
-      // 加粗菜单文字
       span {
-        font-weight: bold;
+        font-weight: 500; // 调整字重
         font-size: 14px;
       }
 
       &:hover {
-        background-color: #add8e6;
-        color: #fff;
+        // 修改 hover 背景色和文字颜色
+        background-color: #ffeae0; // 浅橙色
+        color: #c46e5b; // 匹配标题颜色
         transform: translateX(3px);
       }
     }
 
     .ant-menu-item-selected {
-      background-color: #87ceeb;
-      color: #fff;
+      // 修改选中背景色和文字颜色
+      background-color: #ff7e5f; // 登录按钮渐变色之一
+      color: #fff; // 选中文字白色
       font-weight: bold;
       &::after {
         border-right: none;
@@ -302,7 +309,8 @@ import { useUserStore } from '/@/store';
   }
 
   :deep(.ant-layout-sider-trigger) {
-    background-color: #e5c0ed;
+    // 修改 Sider 触发器背景色
+    background-color: #fff0e6; // 比 Sider 背景稍深
     color: #555;
   }
 </style>

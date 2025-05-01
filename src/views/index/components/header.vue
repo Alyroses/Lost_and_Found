@@ -91,6 +91,16 @@
           </a-spin>
         </a-drawer>
       </div>
+      <a-input-search
+        :placeholder="data.searchMode === 'username' ? '输入用户名搜索' : '输入昵称搜索'"
+        enter-button="查询 🔍" 
+        allowClear
+        @search="onSearch"
+        @input="handleSearchInput"
+        v-model:value="keyword"
+        class="custom-search-input"
+        style="width: 300px"
+      />
     </div>
   </div>
 </template>
@@ -127,6 +137,7 @@ const data = reactive({
   rankingList: [] as RankingItem[],
   loading: false,
   keyword: '',
+  searchMode: 'username', // Default value for searchMode
 });
 
 const keywordRef = ref();
@@ -518,5 +529,26 @@ const handlemap = () => {
     background: rgba(255,0,0,0.1) !important;
     transform: scale(1.02);
   }
+}
+
+/* 自定义 Input Search 样式 */
+.custom-search-input {
+  // ...existing styles for .ant-input...
+  :deep(.ant-input-search-button) {
+    border-radius: 0 16px 16px 0 !important; // 按钮右侧圆角
+    background-color: #1890ff; // 按钮背景色
+    border-color: #1890ff; // 按钮边框色
+    color: #fff; // 按钮文字颜色
+    height: 32px; // 保持与 radio 一致的高度
+    transition: all 0.3s;
+    // 可能需要调整 padding 以适应图标
+    padding: 0 12px; // 调整按钮内边距
+
+    &:hover {
+      background-color: #40a9ff;
+      border-color: #40a9ff;
+    }
+  }
+  // ...existing styles for .ant-input-group-addon, .ant-input-affix-wrapper...
 }
 </style>
