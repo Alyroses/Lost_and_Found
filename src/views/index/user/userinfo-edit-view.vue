@@ -19,8 +19,11 @@
                   :multiple="false"
                   :show-upload-list="false"
                   :before-upload="beforeUpload"
+                  :disabled="!isEditing"  
                 >
-                  <label>点击更换头像</label>
+                  <label :style="{ cursor: isEditing ? 'pointer' : 'default', color: isEditing ? '#4684e2' : '#6f6f6f' }">
+                    {{ isEditing ? '点击更换头像' : '头像' }}
+                  </label>
                 </a-upload> <!-- 隐藏 antd 的列表 -->
               <p class="tip">图片格式支持 GIF、PNG、JPEG，尺寸不小于 200 PX，小于 4 MB</p>
             </div>
@@ -30,7 +33,12 @@
         <div class="item flex-view">
           <div class="label">性别</div>
           <div class="right-box">
-            <a-radio-group v-model:value="tData.form.gender" class="gender-radio-group">
+            <!-- 编辑状态显示 Radio Group -->
+            <a-radio-group
+              v-if="isEditing"
+              v-model:value="tData.form.gender"
+              class="gender-radio-group"
+            >
               <a-radio value="男" class="gender-male">
                 <man-outlined /> 男
               </a-radio>
@@ -39,6 +47,18 @@
               </a-radio>
               <a-radio value="不展示" class="gender-neutral">不展示</a-radio>
             </a-radio-group>
+            <!-- 只读状态显示文本和图标 -->
+            <span v-else class="readonly-text gender-readonly">
+              <template v-if="tData.form.gender === 'M'">
+                <man-outlined class="gender-icon-male" /> 男
+              </template>
+              <template v-else-if="tData.form.gender === 'F'">
+                <woman-outlined class="gender-icon-female" /> 女
+              </template>
+              <template v-else>
+                {{ tData.form.gender === 'N' ? '不展示' : (tData.form.gender || '未填写') }}
+              </template>
+            </span>
           </div>
         </div>
 
@@ -46,13 +66,17 @@
         <div class="item flex-view">
           <div class="label">生日</div>
           <div class="right-box">
+            <!-- 编辑状态显示日期选择器 -->
             <a-date-picker
+              v-if="isEditing"
               v-model:value="tData.form.birthday"
               placeholder="请选择生日"
               valueFormat="YYYY-MM-DD"
               style="width: 200px;"
               class="input-dom"
             />
+            <!-- 只读状态显示文本 -->
+            <span v-else class="readonly-text">{{ tData.form.birthday || '未填写' }}</span>
           </div>
         </div>
 
@@ -60,13 +84,17 @@
         <div class="item flex-view">
           <div class="label">所在地</div>
           <div class="right-box">
+            <!-- 编辑状态显示输入框 -->
             <input
+              v-if="isEditing"
               type="text"
               v-model="tData.form.location"
               placeholder="请输入所在地，如：省/市/区"
               maxlength="100"
               class="input-dom"
             />
+            <!-- 只读状态显示文本 -->
+            <span v-else class="readonly-text">{{ tData.form.location || '未填写' }}</span>
           </div>
         </div>
 
@@ -74,37 +102,86 @@
         <div class="item flex-view">
           <div class="label">学校</div>
           <div class="right-box">
-            <input type="text" v-model="tData.form.school" placeholder="请输入学校名称" maxlength="50" class="input-dom">
+            <!-- 编辑状态显示输入框 -->
+            <input
+              v-if="isEditing"
+              type="text"
+              v-model="tData.form.school"
+              placeholder="请输入学校名称"
+              maxlength="50"
+              class="input-dom"
+            />
+            <!-- 只读状态显示文本 -->
+            <span v-else class="readonly-text">{{ tData.form.school || '未填写' }}</span>
           </div>
         </div>
         <div class="item flex-view">
           <div class="label">用户名/昵称</div>
           <div class="right-box">
-            <input type="text" v-model="tData.form.nickname" placeholder="请输入昵称" maxlength="20" class="input-dom">
-            <p class="tip">支持中英文，长度不能超过 20 个字符</p>
+            <!-- 编辑状态显示输入框，绑定到 username -->
+            <input
+              v-if="isEditing"
+              type="text"
+              v-model="tData.form.username" 
+              placeholder="请输入用户名" 
+              maxlength="20"
+              class="input-dom"
+            />
+            <!-- 只读状态显示文本，显示 username -->
+            <span v-else class="readonly-text">{{ tData.form.username || '未填写' }}</span>
+            <p v-if="isEditing" class="tip">支持中英文，长度不能超过 20 个字符</p>
           </div>
         </div>
         <div class="item flex-view">
           <div class="label">手机号</div>
           <div class="right-box">
-            <input type="text" v-model="tData.form.mobile" placeholder="请输入邮箱" maxlength="100" class="input-dom web-input">
+            <!-- 编辑状态显示输入框 -->
+            <input
+              v-if="isEditing"
+              type="text"
+              v-model="tData.form.mobile"
+              placeholder="请输入手机号"
+              maxlength="11"
+              class="input-dom web-input"
+            />
+            <!-- 只读状态显示文本 -->
+            <span v-else class="readonly-text">{{ tData.form.mobile || '未填写' }}</span>
           </div>
         </div>
         <div class="item flex-view">
           <div class="label">邮箱</div>
           <div class="right-box">
-            <input type="text" v-model="tData.form.email" placeholder="请输入邮箱" maxlength="100" class="input-dom web-input">
+            <!-- 编辑状态显示输入框 -->
+            <input
+              v-if="isEditing"
+              type="text"
+              v-model="tData.form.email"
+              placeholder="请输入邮箱"
+              maxlength="100"
+              class="input-dom web-input"
+            />
+            <!-- 只读状态显示文本 -->
+            <span v-else class="readonly-text">{{ tData.form.email || '未填写' }}</span>
           </div>
         </div>
         <div class="item flex-view">
           <div class="label">个人简介</div>
           <div class="right-box">
-          <textarea v-model="tData.form.description" placeholder="请输入简介" maxlength="200" class="intro">
-          </textarea>
-            <p class="tip">限制200字以内</p>
+            <!-- 编辑状态显示文本域 -->
+            <textarea
+              v-if="isEditing"
+              v-model="tData.form.description"
+              placeholder="请输入简介"
+              maxlength="200"
+              class="intro"
+            ></textarea>
+            <!-- 只读状态显示段落 -->
+            <p v-else class="readonly-textarea">{{ tData.form.description || '未填写' }}</p>
+            <p v-if="isEditing" class="tip">限制200字以内</p>
           </div>
         </div>
-        <button class="save mg" @click="submit()">保存</button>
+        <button v-if="isEditing" class="save mg" @click="submit()">保存</button>
+        <button v-if="!isEditing" class="edit mg" @click="toggleEdit(true)">编辑</button>
       </div>
     </div>
     </a-spin>
@@ -128,7 +205,8 @@ let tData = reactive({
   form:{
     avatar: undefined, // 后端返回的头像 URL
     avatarFile: null, // 本地文件对象
-    nickname: undefined,
+    username: undefined, // 确保 username 字段存在
+    nickname: undefined, // nickname 字段仍然可以保留，但输入框不绑定它
     email: undefined,
     mobile: undefined,
     description: undefined,
@@ -138,6 +216,18 @@ let tData = reactive({
     school: undefined,
   }
 })
+
+// 新增：编辑状态 ref
+const isEditing = ref(false); // 默认为非编辑状态
+
+// 新增：切换编辑状态的函数
+const toggleEdit = (editingState) => {
+  isEditing.value = editingState;
+  if (editingState) {
+    // 进入编辑模式时，清空可能存在的预览 URL，避免显示旧的预览
+    tData.previewUrl = null;
+  }
+};
 
 onMounted(()=>{
   getUserInfo()
@@ -171,9 +261,12 @@ const getUserInfo =()=> {
     tData.form = { ...res.data, avatarFile: null }; // 合并数据并清空旧文件
     tData.previewUrl = null; // 清空预览
     loading.value = false
+    toggleEdit(false); // 获取数据成功后，进入只读模式
   }).catch(err => {
     console.log(err)
     loading.value = false
+    // 获取失败也设置为非编辑状态，避免一直显示加载或空表单
+    toggleEdit(false);
   })
 }
 const submit =()=> {
@@ -194,10 +287,14 @@ const submit =()=> {
     formData.append('avatar', tData.form.avatarFile); // 'avatar' 是后端接收文件的字段名
   }
 
-  // 添加其他字段
-  if (tData.form.nickname) {
-    formData.append('nickname', tData.form.nickname)
+  // 添加其他字段 - 确保发送的是 username
+  if (tData.form.username) { // 修改：发送 username
+    formData.append('username', tData.form.username) // 修改：发送 username
   }
+  // 如果后端也需要 nickname，可以单独添加
+  // if (tData.form.nickname) {
+  //   formData.append('nickname', tData.form.nickname)
+  // }
   if (tData.form.email) {
     formData.append('email', tData.form.email)
   }
@@ -241,6 +338,7 @@ const submit =()=> {
           console.log("尝试更新 userStore...");
           userStore.setUserInfo(res.data); // 调用 action 更新 store
           console.log("userStore 更新成功");
+          toggleEdit(false); // 保存成功后，返回只读模式
 
       } else {
           console.warn("后端响应成功，但未返回有效数据，重新获取用户信息...");
@@ -253,6 +351,7 @@ const submit =()=> {
       // 打印更详细的错误堆栈
       console.error("错误堆栈:", successHandlingError.stack);
       message.error('信息更新成功，但处理响应时遇到问题'); // 提供更具体的错误信息
+      toggleEdit(false); // 即使处理响应出错，也尝试返回只读模式
     }
     // --- End: Add try...catch ---
 
@@ -374,7 +473,7 @@ input, textarea {
       }
 
       .tip {
-        font-size: 12px;
+        font-size: 15px;
         line-height: 16px;
         color: #6f6f6f;
         height: 16px;
@@ -486,9 +585,114 @@ input, textarea {
     .mg {
       margin-left: 100px;
     }
+
+    // 新增：编辑按钮样式 (可以复用 save 样式或自定义)
+    .edit {
+      background: #1890ff; // 编辑按钮用蓝色
+      border-radius: 32px;
+      width: 96px;
+      height: 32px;
+      line-height: 32px;
+      font-size: 14px;
+      color: #fff;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      transition: background 0.3s;
+
+      &:hover {
+        background: #40a9ff;
+      }
+    }
   }
 }
 
+// 为 readonly 状态下的 input 和 textarea 添加样式
+input[readonly], textarea[readonly] {
+  background-color: #f5f5f5; // 更明显的只读背景色
+  cursor: default; // 默认光标
+  border-color: #d9d9d9; // 边框颜色变浅
+  color: rgba(0, 0, 0, 0.65); // 文字颜色变浅
+}
+// 修正：确保 antd 组件 disabled 状态下的样式
+:deep(.ant-radio-group[disabled]),
+:deep(.ant-picker.input-dom.ant-picker-disabled) {
+  background-color: #f5f5f5 !important; // 统一只读背景色
+  cursor: default !important;
+  color: rgba(0, 0, 0, 0.65) !important;
+}
+:deep(.ant-radio-group[disabled] .ant-radio-wrapper) {
+  cursor: default !important;
+  color: rgba(0, 0, 0, 0.45) !important; // radio 文字颜色更浅
+}
+:deep(.ant-radio-group[disabled] .ant-radio-inner) {
+  border-color: #d9d9d9 !important;
+  background-color: #f5f5f5 !important;
+}
+:deep(.ant-radio-group[disabled] .ant-radio-inner::after) {
+  background-color: #d9d9d9 !important; // 圆点颜色
+}
+// 特别处理性别图标在 disabled 状态下的颜色
+:deep(.gender-radio-group[disabled]) {
+  .gender-male .anticon,
+  .gender-female .anticon {
+    color: rgba(0, 0, 0, 0.45) !important; // 图标颜色变浅
+  }
+  .gender-female {
+     color: rgba(0, 0, 0, 0.45) !important; // 女性文字颜色也变浅
+  }
+}
+
+// 新增：只读文本样式
+.readonly-text {
+  display: inline-block; // 或 block，根据需要
+  padding: 0 12px; // 模拟 input 的内边距
+  height: 40px; // 模拟 input 的高度
+  line-height: 40px; // 垂直居中文本
+  font-size: 15px;
+  color: rgba(0, 0, 0, 0.85); // 正常文本颜色，或稍浅
+  // background-color: #f5f5f5; // 可选：添加背景色以区分
+  // border-radius: 4px; // 可选：添加圆角
+  width: 400px; // 与 input-dom 保持一致
+  box-sizing: border-box; // 确保 padding 不会增加总宽度
+  white-space: nowrap; // 防止文本换行
+  overflow: hidden; // 隐藏溢出部分
+  text-overflow: ellipsis; // 显示省略号
+
+  // 为性别只读状态添加特定样式（如果需要调整宽度或对齐）
+  &.gender-readonly {
+    width: auto; // 自动宽度适应内容
+    display: inline-flex; // 使用 flex 布局对齐图标和文字
+    align-items: center; // 垂直居中
+    gap: 4px; // 图标和文字间距
+  }
+}
+
+// 新增：只读状态性别图标颜色
+.gender-icon-male {
+  color: #1890ff; // 蓝色
+}
+.gender-icon-female {
+  color: #eb2f96; // 粉色
+}
+
+// 新增：只读文本域样式 (适用于 textarea)
+.readonly-textarea {
+  display: block; // 使用 block 以便控制宽度和高度
+  padding: 30px 12px; // 模拟 textarea 的内边距
+  min-height: 82px; // 模拟 textarea 的高度
+  line-height: 22px; // 模拟 textarea 的行高
+  font-size: 15px;
+  color: rgba(0, 0, 0, 0.85);
+  width: 100%; // 占据整个 right-box 宽度
+  box-sizing: border-box;
+  word-wrap: break-word; // 允许长单词换行
+  white-space: pre-wrap; // 保留换行符和空格
+  margin-top: 10px;
+  // background-color: #f5f5f5; // 可选：添加背景色
+  // border: 1px solid #d9d9d9; // 可选：添加边框
+  // border-radius: 4px; // 可选：添加圆角
+}
 </style>
 
 
