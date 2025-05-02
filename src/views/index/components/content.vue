@@ -51,7 +51,7 @@
             @click="selectTab(2)"
             :ref="el => tabRefs[2] = el"
           >
-            <BulbOutlined /> 拾物
+            <BulbOutlined /> 招领
           </span>
           <span
             class="tab tab-hot"
@@ -118,6 +118,7 @@ import { BASE_URL } from '/@/store/constants';
 import { regionData } from 'element-china-area-data'; // 导入地区数据
 import { ref, reactive, onMounted, nextTick } from 'vue'; // 引入 ref 和 nextTick
 import { AppstoreOutlined, QuestionCircleOutlined, BulbOutlined, FireOutlined, ClockCircleOutlined } from '@ant-design/icons-vue';
+import { useRouter } from 'vue-router'; // 确保导入 useRouter
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -134,7 +135,7 @@ const contentData = reactive({
     thing:undefined,
   },
 
-  tabData: ['全部', '失物', '拾物', '最热', '最新'],
+  tabData: ['全部', '失物', '招领', '最热', '最新'],
   selectTabIndex: 0,
   tabUnderLeft: 0, // 初始值设为 0
   tabUnderWidth: 0, // 新增：下划线宽度
@@ -263,18 +264,23 @@ const selectTab = (index) => {
 
 const handleDetail = (item) => {
   // 跳转新页面
-  let userid = userStore.user_id
-  let thingid = item.id
+  let userid = userStore.user_id;
+  let thingid = item.id;
+  let thingType = item.type; // *** 获取物品类型 ***
+
   contentData.form.user = userid;
   contentData.form.thing = thingid;
 
   createSkimApi(contentData.form).then((res) => {
-    console.log("ok")
+    console.log("Skim record created");
   }).catch((err) => {
+    console.error("Failed to create skim record:", err);
   });
 
-  router.push({ name: 'detail', query: { id: item.id } });
+  // *** 在路由查询中添加 type 参数 ***
+  router.push({ name: 'detail', query: { id: item.id, type: thingType } });
 };
+
 // 分页事件
 const changePage = (page) => {
   contentData.page = page;
@@ -289,8 +295,11 @@ const getThingList = (data) => {
   listThingList(data)
     .then((res) => {
       contentData.loading = false;
-      console.log(res); // 确认 res.data 中包含 user.username
-      contentData.thingData = res.data;
+      console.log(res); // 确认 res.data 中包含 user.username 和 type
+      contentData.thingData = res.data.map(item => ({ // *** 确保每个 item 包含 type ***
+        ...item,
+        type: item.type || (data.type || 'unknown') // 如果后端没返回 type，尝试从请求参数推断
+      }));
       contentData.total = contentData.thingData.length;
       changePage(1);
     })

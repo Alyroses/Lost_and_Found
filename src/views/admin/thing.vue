@@ -26,7 +26,7 @@
              v-model:value="filterStatus"
              placeholder="筛选状态"
              style="width: 120px; margin-left: 8px;"
-             @change="handleChange"
+             @change="handleFilterChange"
              allowClear
            >
              <a-select-option value="">全部</a-select-option>
@@ -87,7 +87,7 @@
               <!-- 查看详情按钮 (保持不变) -->
               <a-button type="primary" size="small" @click="handleViewDetail(record)">
                 <template #icon><EyeOutlined /></template>
-                查看详情
+                详情
               </a-button>
 
               <!-- 修改：审核操作 (状态为 0 时显示) -->
@@ -453,7 +453,7 @@ const rejectModal = reactive({
 const myform = ref<FormInstance>();
 
 onMounted(() => {
-  getDataList();
+  getDataList({ status: filterStatus.value });
   getCDataList();
   getTagDataList();
 });
@@ -523,7 +523,7 @@ const onSearch = () => {
 };
 
 // --- 新增：处理筛选状态变化 ---
-  onChange: (selectedRowKeys: (string | number)[], selectedRows: any[]) => {
+const handleFilterChange = () => {
   data.page = 1; // 重置到第一页
   getDataList({ keyword: keyword.value, status: filterStatus.value });
 };
@@ -582,7 +582,7 @@ const handleViewDetail = (record: any) => {
   modal.mode = 'view'; // 修改：设置模式为 view
   modal.visile = true;
   // modal.editFlag = false; // 移除
-  modal.title = '查看详情'; // 修改标题
+  modal.title = '详情'; // 修改标题
   // 重置
   for (const key in modal.form) {
     modal.form[key] = undefined;
@@ -628,6 +628,7 @@ const updateThingStatus = (record: any, targetStatus: '1' | '2', reason?: string
   const formData = new FormData();
   formData.append('id', record.id);
   formData.append('status', targetStatus);
+  formData.append('type', 'lost'); // 新增：添加类型参数
   // 如果有拒绝理由，添加到 FormData
   if (targetStatus === '2' && reason) {
     formData.append('comment', reason); // 假设后端接收拒绝理由的字段是 'comment'

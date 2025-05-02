@@ -329,8 +329,18 @@ const hideModal = () => {
   modal.visile = false;
 };
 
+let thingType = ref(''); // 新增：用于存储物品类型
+
 onMounted(() => {
-  thingId.value = route.query.id.trim();
+  thingId.value = route.query.id?.toString() || ''; // 确保是字符串
+  thingType.value = route.query.type?.toString() || ''; // *** 获取 type 参数 ***
+
+  if (!thingId.value || !thingType.value) { // 检查 id 和 type 是否都存在
+      message.error('无效的物品信息');
+      router.push({ name: 'portal' }); // 跳转回首页或错误页
+      return;
+  }
+
   getThingDetail();
   getRecommendThing();
   getCommentList();
@@ -365,10 +375,11 @@ const selectTab = (index) => {
 };
 
 const getThingDetail = () => {
-  detailApi({ id: thingId.value })
+  // *** 在调用 API 时传递 id 和 type ***
+  detailApi({ id: thingId.value, type: thingType.value })
     .then((res) => {
       detailData.value = res.data;
-      detailData.value.cover = detailData.value.cover;
+      // detailData.value.cover = detailData.value.cover; // 这行似乎多余，如果 cover 已经是完整 URL
     })
     .catch((err) => {
       message.error('获取详情失败');
@@ -633,7 +644,7 @@ const sortCommentList = (sortType) => {
     margin: 16px 0;
     color: #0f1111 !important;
     font-weight: 400 !important;
-    font-style: normal !重要;
+    font-style: normal !important;
     text-transform: none !important;
     text-decoration: none !important;
   }

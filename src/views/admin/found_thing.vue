@@ -19,7 +19,7 @@
           class="custom-search-input"
           style="width: 300px"
         />
-        <!-- 状态筛选框 (根据拾物状态调整) -->
+        <!-- 状态筛选框 (调整状态文本) -->
         <a-select
           v-model:value="filterStatus"
           placeholder="筛选状态"
@@ -28,9 +28,9 @@
           allowClear
         >
           <a-select-option value="">全部</a-select-option>
-          <a-select-option value="0">待认领</a-select-option>
-          <a-select-option value="1">已认领</a-select-option>
-          <a-select-option value="2">已过期/处理</a-select-option> <!-- 示例状态 -->
+          <a-select-option value="0">待审核</a-select-option> <!-- 修改 -->
+          <a-select-option value="1">已上架</a-select-option> <!-- 修改 -->
+          <a-select-option value="2">已下架</a-select-option> <!-- 修改 -->
         </a-select>
         <!-- 刷新按钮 -->
         <a-button @click="getFoundThingList()" class="refresh-button">
@@ -56,7 +56,8 @@
         onChange: (current) => (data.page = current),
         showSizeChanger: false,
         showTotal: (total) => `共${total}条数据`,
-        style: { marginTop: '16px' }
+        style: { marginTop: '16px' },
+        total: data.total, // 绑定总数
       }"
       class="found-thing-table"
     >
@@ -68,27 +69,87 @@
             <template #icon><FileImageOutlined /></template>
           </a-avatar>
         </template>
-        <!-- 状态列渲染 -->
+         <!-- 新增：发布者列渲染 -->
+         <template v-else-if="column.key === 'username'">
+           <span>{{ record.user?.username || 'N/A' }}</span>
+         </template>
+        <!-- 状态列渲染 (使用新的状态文本) -->
         <template v-else-if="column.key === 'status'">
-           <!-- 根据实际状态值调整 -->
           <a-tag :color="getStatusColor(record.status)">
             {{ getStatusText(record.status) }}
           </a-tag>
         </template>
         <!-- 操作列渲染 -->
         <template v-else-if="column.key === 'operation'">
-           <!-- 根据需要添加操作，例如 查看详情、编辑、标记为已认领、删除等 -->
-           <a-button type="link" size="small" @click="viewDetail(record)">详情</a-button>
-           <a-divider type="vertical" />
-           <a-popconfirm
-             title="确定删除该拾物信息?"
-             ok-text="是"
-             cancel-text="否"
-             @confirm="deleteFoundThing(record)"
-           >
-             <a-button type="link" danger size="small">删除</a-button>
-           </a-popconfirm>
-           <!-- 更多操作... -->
+           <a-space size="small">
+             <!-- 查看详情按钮 -->
+             <a-button type="primary" size="small" @click="viewDetail(record)">
+               <template #icon><EyeOutlined /></template>
+               详情
+             </a-button>
+
+             <!-- 新增：审核操作 (状态为 0 时显示) -->
+             <template v-if="record.status === '0'">
+                <a-dropdown :trigger="['hover']">
+                  <template #overlay>
+                    <a-menu @click="({ key }) => handleAuditMenuClick(key, record)">
+                      <a-menu-item key="approve" class="audit-menu-item approve">
+                        <CheckOutlined />通过审核
+                      </a-menu-item>
+                      <a-menu-item key="reject" class="audit-menu-item reject">
+                        <CloseOutlined />拒绝审核
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                  <a-button size="small" class="audit-dropdown-button">
+                    审核 <DownOutlined />
+                  </a-button>
+                </a-dropdown>
+             </template>
+
+             <!-- 下架操作 (状态为 1 时显示) -->
+             <template v-if="record.status === '1'">
+               <a-popconfirm
+                 title="确定下架该拾物信息吗？"
+                 ok-text="是"
+                 cancel-text="否"
+                 @confirm="updateFoundThingStatus(record, '2')"
+               >
+                 <a-button type="primary" danger size="small">
+                   <template #icon><ArrowDownOutlined /></template> <!-- 修改图标 -->
+                   下架
+                 </a-button>
+               </a-popconfirm>
+             </template>
+
+             <!-- 上架操作 (状态为 2 时显示) -->
+             <template v-if="record.status === '2'">
+               <a-popconfirm
+                 title="确定重新上架该拾物信息吗？"
+                 ok-text="是"
+                 cancel-text="否"
+                 @confirm="updateFoundThingStatus(record, '1')"
+               >
+                 <a-button type="primary" size="small" style="background-color: #52c41a; border-color: #52c41a;">
+                   <template #icon><ArrowUpOutlined /></template> <!-- 修改图标 -->
+                   上架
+                 </a-button>
+               </a-popconfirm>
+             </template>
+
+             <!-- 删除按钮 (保持不变) -->
+             <a-popconfirm
+               title="确定删除该拾物信息?"
+               ok-text="是"
+               cancel-text="否"
+               @confirm="deleteFoundThing(record)"
+             >
+               <a-button type="primary" danger size="small">
+                 <template #icon><DeleteOutlined /></template>
+                 删除
+               </a-button>
+             </a-popconfirm>
+           </a-space>
         </template>
       </template>
     </a-table>
@@ -97,20 +158,39 @@
   <!-- 可能需要的模态框，例如编辑/详情模态框 -->
   <!-- <a-modal ... /> -->
 
+  <!-- 新增：拒绝理由输入模态框 -->
+  <a-modal
+    v-model:visible="rejectModal.visible"
+    title="输入拒绝理由"
+    ok-text="确认拒绝"
+    cancel-text="取消"
+    @ok="confirmReject"
+    @cancel="cancelReject"
+    :confirm-loading="rejectModal.loading"
+  >
+    <a-textarea
+      v-model:value="rejectModal.reason"
+      placeholder="请输入拒绝审核的理由..."
+      :rows="4"
+    />
+  </a-modal>
+
 </template>
 
 <script setup lang="ts">
 // --- 导入必要的 API 和组件 ---
-// import { listFoundApi, deleteFoundApi, updateFoundApi } from '/@/api/admin/found_thing'; // 假设有对应的 API
-import { message, SelectProps } from 'ant-design-vue';
+// 修改：导入 admin API
+import { listApi, deleteApi, updateApi } from '/@/api/admin/thing';
+import { message, SelectProps, Modal } from 'ant-design-vue'; // 导入 Modal
 import type { ColumnType } from 'ant-design-vue/es/table';
 import { ref, reactive, onMounted } from 'vue';
 import { debounce } from 'lodash-es';
-import { ReloadOutlined, FileImageOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+// 修改：导入所需图标
+import { ReloadOutlined, FileImageOutlined, EyeOutlined, DeleteOutlined, CheckOutlined, TagOutlined, DownOutlined, CloseOutlined, ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons-vue';
 
 // --- 响应式数据 ---
 const keyword = ref('');
-const filterStatus = ref<string>('1'); // 默认筛选“已认领”
+const filterStatus = ref<string>(''); // 默认不过滤状态
 
 const data = reactive({
   foundThingList: [], // 存储拾物列表数据
@@ -120,27 +200,36 @@ const data = reactive({
   total: 0, // 总数，用于分页
 });
 
-// --- 表格列定义 (需要根据拾物信息调整) ---
+// 新增：拒绝理由模态框状态
+const rejectModal = reactive({
+  visible: false,
+  loading: false,
+  reason: '',
+  currentRecord: null as any | null, // 存储当前要拒绝的记录
+});
+
+// --- 表格列定义 (调整字段和 key) ---
 const columns: ColumnType<any>[] = reactive([
   { title: '序号', dataIndex: 'index', key: 'index', align: 'center', width: 80 },
   { title: '图片', dataIndex: 'cover', key: 'cover', align: 'center', width: 100 },
   { title: '物品名称', dataIndex: 'title', key: 'title', align: 'center' },
   { title: '拾取地点', dataIndex: 'location', key: 'location', align: 'center' },
-  { title: '拾取时间', dataIndex: 'found_time', key: 'found_time', align: 'center' }, // 假设有拾取时间字段
-  { title: '发布者', dataIndex: ['user', 'username'], key: 'username', align: 'center' }, // 假设关联了用户
+  // { title: '拾取时间', dataIndex: 'found_time', key: 'found_time', align: 'center' }, // 后端若无此字段可移除
+  { title: '发布者', key: 'username', align: 'center' }, // 使用 key 匹配 template
   { title: '状态', dataIndex: 'status', key: 'status', align: 'center', width: 100 },
-  { title: '操作', key: 'operation', align: 'center', width: 180 },
+  { title: '操作', key: 'operation', align: 'center', fixed: 'right', width: 200 }, // 调整宽度
 ]);
 
 // --- 方法 ---
 
-// 获取拾物列表 (需要实现 API 调用)
+// 获取拾物列表
 const getFoundThingList = (params: { keyword?: string; status?: string } = {}) => {
   data.loading = true;
   const apiParams: Record<string, any> = {
     page: data.page,
     pageSize: data.pageSize,
     keyword: params.keyword !== undefined ? params.keyword : keyword.value,
+    type: 'found', // *** 关键：指定类型为拾物 ***
   };
   if (params.status !== undefined && params.status !== '') {
     apiParams.status = params.status;
@@ -149,43 +238,24 @@ const getFoundThingList = (params: { keyword?: string; status?: string } = {}) =
   }
 
   console.log("Fetching found things with params:", apiParams);
-  // --- Placeholder for API call ---
-  // listFoundApi(apiParams).then(res => {
-  //   data.loading = false;
-  //   if (res.code === 0) {
-  //      data.foundThingList = res.data.list.map((item, index) => ({ ...item, index: (data.page - 1) * data.pageSize + index + 1 }));
-  //      data.total = res.data.total;
-  //   } else {
-  //      message.error(res.msg || '获取拾物列表失败');
-  //   }
-  // }).catch(err => {
-  //   data.loading = false;
-  //   console.error(err);
-  //   message.error('请求拾物列表出错');
-  // });
-  // --- End Placeholder ---
-
-  // 模拟数据和结束 loading
-  setTimeout(() => {
-      data.loading = false;
-      // 模拟分页数据
-      const mockData = [
-          { id: 1, index: 1, cover: 'https://via.placeholder.com/64?text=Found1', title: '拾到的钱包', location: '图书馆', found_time: '2023-10-27 10:00', user: { username: '张三' }, status: '1' },
-          { id: 2, index: 2, cover: 'https://via.placeholder.com/64?text=Found2', title: '拾到的钥匙', location: '教学楼A', found_time: '2023-10-26 15:30', user: { username: '李四' }, status: '0' },
-          { id: 3, index: 3, cover: 'https://via.placeholder.com/64?text=Found3', title: '拾到的雨伞', location: '食堂', found_time: '2023-10-28 12:00', user: { username: '王五' }, status: '1' },
-      ];
-      // 根据筛选条件模拟过滤
-      let filteredData = mockData;
-      if (apiParams.keyword) {
-          filteredData = filteredData.filter(item => item.title.includes(apiParams.keyword));
-      }
-      if (apiParams.status) {
-          filteredData = filteredData.filter(item => item.status === apiParams.status);
-      }
-      data.foundThingList = filteredData.map((item, index) => ({ ...item, index: (data.page - 1) * data.pageSize + index + 1 }));
-      data.total = filteredData.length; // 模拟总数
-      message.info("获取拾物列表功能待实现 (模拟数据)");
-  }, 500);
+  // --- 调用实际 API ---
+  listApi(apiParams).then(res => { // 使用 listApi
+    data.loading = false;
+    // 假设后端返回的数据结构与失物类似，包含 user 对象
+    data.foundThingList = res.data.map((item, index) => ({
+        ...item,
+        index: (data.page - 1) * data.pageSize + index + 1
+    }));
+    // data.total = res.total; // 假设后端返回总数
+    // 模拟总数，如果后端没返回
+    data.total = data.foundThingList.length; // 或者根据实际情况调整
+    console.log("Found things data:", data.foundThingList);
+  }).catch(err => {
+    data.loading = false;
+    console.error(err);
+    message.error(err.msg || '获取拾物列表失败');
+  });
+  // --- API 调用结束 ---
 };
 
 // 搜索防抖
@@ -209,45 +279,141 @@ const handleFilterChange = () => {
 // 查看详情 (需要实现)
 const viewDetail = (record: any) => {
   console.log("查看详情:", record);
-  // 打开详情模态框或跳转详情页
-  message.info("查看详情功能待实现");
+  // 这里可以打开一个模态框显示更详细的信息
+  // 例如，使用 Modal.info() 或自定义模态框
+  Modal.info({
+      title: '拾物详情',
+      content: `
+          <p><strong>ID:</strong> ${record.id}</p>
+          <p><strong>名称:</strong> ${record.title}</p>
+          <p><strong>地区:</strong> ${record.location}</p>
+          <p><strong>详细地点:</strong> ${record.detail_location || '无'}</p>
+          <p><strong>描述:</strong> ${record.description || '无'}</p>
+          <p><strong>发布者:</strong> ${record.user?.username || 'N/A'}</p>
+          <p><strong>联系方式:</strong> ${record.mobile || '未提供'}</p>
+          <p><strong>状态:</strong> ${getStatusText(record.status)}</p>
+          ${record.cover ? `<img src="${record.cover}" style="max-width: 100%; margin-top: 10px;" />` : ''}
+      `,
+      width: 600,
+      okText: '关闭',
+  });
+  // message.info("查看详情功能待实现");
 };
 
-// 删除拾物信息 (需要实现 API 调用)
+// 删除拾物信息
 const deleteFoundThing = (record: any) => {
   console.log("删除:", record);
-  // --- Placeholder for API call ---
-  // deleteFoundApi({ id: record.id }).then(res => {
-  //   if (res.code === 0) {
-  //     message.success('删除成功');
-  //     getFoundThingList(); // 刷新列表
-  //   } else {
-  //     message.error(res.msg || '删除失败');
-  //   }
-  // }).catch(err => {
-  //   console.error(err);
-  //   message.error('请求删除出错');
-  // });
-  // --- End Placeholder ---
-  message.info("删除功能待实现");
+  // --- 调用实际 API ---
+  deleteApi({ id: record.id }).then(res => { // 使用 deleteApi
+    message.success('删除成功');
+    getFoundThingList(); // 刷新列表
+  }).catch(err => {
+    console.error(err);
+    message.error(err.msg || '删除失败');
+  });
+  // --- API 调用结束 ---
 };
 
-// 根据状态值返回 Tag 颜色 (示例)
+// 修改：更新拾物状态 (处理审核、上架、下架)
+const updateFoundThingStatus = (record: any, targetStatus: '1' | '2', reason?: string) => {
+  let actionText = '';
+  if (record.status === '0' && targetStatus === '1') actionText = '通过审核';
+  else if (record.status === '0' && targetStatus === '2') actionText = '拒绝审核';
+  else if (record.status === '1' && targetStatus === '2') actionText = '下架';
+  else if (record.status === '2' && targetStatus === '1') actionText = '上架';
+  else {
+    console.warn('无效的状态转换:', record.status, '->', targetStatus);
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('id', record.id);
+  formData.append('status', targetStatus);
+  formData.append('type', 'found'); // 新增：添加类型参数
+  // 如果是拒绝审核，添加理由
+  if (record.status === '0' && targetStatus === '2' && reason) {
+    formData.append('comment', reason); // 假设后端接收拒绝理由的字段是 'comment'
+  }
+
+  // 显示加载状态（如果是从拒绝模态框触发）
+  if (rejectModal.visible) rejectModal.loading = true;
+
+  updateApi({ id: record.id }, formData) // 使用 updateApi
+    .then((res) => {
+      message.success(`操作成功：${actionText}`);
+      getFoundThingList(); // 刷新列表
+      if (rejectModal.visible) cancelReject(); // 关闭拒绝模态框
+    })
+    .catch((err) => {
+      console.error(err);
+      message.error(`${actionText}操作失败: ${err.msg || ''}`);
+    })
+    .finally(() => {
+      if (rejectModal.visible) rejectModal.loading = false; // 结束加载状态
+    });
+};
+
+// 新增：显示拒绝理由模态框
+const showRejectModal = (record: any) => {
+  rejectModal.currentRecord = record;
+  rejectModal.reason = ''; // 清空上次的理由
+  rejectModal.visible = true;
+};
+
+// 新增：确认拒绝操作
+const confirmReject = () => {
+  if (!rejectModal.reason.trim()) {
+    message.warning('请输入拒绝理由');
+    return;
+  }
+  if (rejectModal.currentRecord) {
+    // 调用 updateFoundThingStatus 并传入拒绝理由
+    updateFoundThingStatus(rejectModal.currentRecord, '2', rejectModal.reason.trim());
+  }
+};
+
+// 新增：取消拒绝操作
+const cancelReject = () => {
+  rejectModal.visible = false;
+  rejectModal.loading = false;
+  rejectModal.currentRecord = null;
+  rejectModal.reason = '';
+};
+
+// 新增：处理审核下拉菜单点击事件
+const handleAuditMenuClick = (key: string, record: any) => {
+  if (key === 'approve') {
+    Modal.confirm({
+      title: '确定通过审核吗？',
+      content: '通过后物品将变为“已上架”状态。',
+      okText: '是',
+      cancelText: '否',
+      onOk: () => {
+        updateFoundThingStatus(record, '1'); // 通过审核，状态变为 1
+      },
+    });
+  } else if (key === 'reject') {
+    showRejectModal(record); // 显示拒绝理由输入框
+  }
+};
+
+
+// 修改：根据状态值返回 Tag 颜色 (匹配 thing.vue)
 const getStatusColor = (status: string) => {
   switch (status) {
-    case '0': return 'processing'; // 待认领
-    case '1': return 'success';    // 已认领
-    case '2': return 'default';    // 已过期/处理
+    case '0': return 'orange'; // 待审核 - 橙色
+    case '1': return 'success'; // 已上架 - 绿色
+    case '2': return 'red';     // 已下架 - 红色
     default: return 'default';
   }
 };
 
-// 根据状态值返回 Tag 文本 (示例)
+// 修改：根据状态值返回 Tag 文本 (匹配 thing.vue)
 const getStatusText = (status: string) => {
   switch (status) {
-    case '0': return '待认领';
-    case '1': return '已认领';
-    case '2': return '已处理';
+    case '0': return '待审核';
+    case '1': return '已上架';
+    case '2': return '已下架';
     default: return '未知';
   }
 };
@@ -280,7 +446,7 @@ onMounted(() => {
   border-radius: 4px;
 
   :deep(.ant-table-thead > tr > th) {
-    background-color: #fafafa; // 可以用不同的表头颜色区分
+    background-color: #e6f7ff; // 浅蓝色表头
     font-weight: 600;
     color: #333;
   }
@@ -367,4 +533,94 @@ onMounted(() => {
     border-radius: 6px !important;
   }
 }
+
+/* 调整操作按钮样式 */
+:deep(.ant-table-cell .ant-btn[style*="background-color: #52c41a"]) { // 标记认领
+  &:hover, &:focus {
+    background-color: #73d13d !important;
+    border-color: #73d13d !important;
+  }
+}
+/* 新增：审核下拉按钮样式 (复制自 thing.vue) */
+.audit-dropdown-button {
+  border-color: #1890ff; // 蓝色边框
+  color: #1890ff; // 蓝色文字
+  background-color: #e6f7ff; // 浅蓝色背景
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1); // 平滑过渡效果
+
+  &:hover {
+    border-color: #40a9ff;
+    color: #fff; // 白色文字
+    background-color: #1890ff; // 深蓝色背景
+    transform: translateY(-2px); // 轻微上移
+    box-shadow: 0 4px 8px rgba(24, 144, 255, 0.2); // 添加阴影
+  }
+
+  &:active {
+    transform: translateY(0); // 点击时恢复原位
+    background-color: #096dd9; // 更深的蓝色背景
+    border-color: #096dd9;
+    box-shadow: none; // 移除阴影
+  }
+
+  // 图标颜色也跟随变化
+  .anticon {
+    transition: color 0.3s;
+  }
+  &:hover .anticon {
+    color: #fff;
+  }
+}
+
+/* 新增：审核下拉菜单项样式 (复制自 thing.vue) */
+:deep(.ant-dropdown-menu .ant-dropdown-menu-item.audit-menu-item) {
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  .anticon {
+    margin-right: 8px;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover {
+    background-color: #f0f0f0;
+
+    .anticon {
+       transform: scale(1.1);
+    }
+  }
+
+  &.approve {
+    color: #52c41a; // 默认文字绿色
+    .anticon { color: #52c41a; }
+    &:hover {
+      background-color: #f6ffed; // 悬停背景浅绿
+      color: #52c41a; // 悬停文字绿色
+    }
+  }
+  &.reject {
+    color: #ff4d4f; // 默认文字红色
+    .anticon { color: #ff4d4f; }
+    &:hover {
+      background-color: #fff1f0; // 悬停背景浅红
+      color: #ff4d4f; // 悬停文字红色
+    }
+  }
+}
+
+/* 调整操作按钮样式 (复制自 thing.vue) */
+:deep(.ant-table-cell .ant-btn[style*="background-color: #52c41a"]) { // 上架按钮
+  &:hover, &:focus {
+    background-color: #73d13d !important;
+    border-color: #73d13d !important;
+  }
+}
+/* 移除旧的标记处理按钮样式 */
+/*
+:deep(.ant-table-cell .ant-btn[style*="background-color: #faad14"]) { // 标记处理
+  &:hover, &:focus {
+    background-color: #ffc53d !important;
+    border-color: #ffc53d !important;
+  }
+}
+*/
 </style>

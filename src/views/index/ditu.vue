@@ -32,9 +32,14 @@ import redMarkerIcon from '/src/assets/icons/svg/red-marker.svg'; // 假设红�
 import greenMarkerIcon from '/src/assets/icons/svg/green-marker.svg';
 // 新增：导入拾物图标
 import foundMarkerIcon from '/src/assets/icons/svg/拾物定位.svg';
+import { useRouter } from 'vue-router'; // 导入 useRouter
 
 export default {
     components: { Footer, Header },
+    setup() { // 如果使用 <script setup> 则不需要 setup()
+      const router = useRouter(); // 获取 router 实例
+      return { router };
+    },
     data() {
         return {
             map: null,
@@ -368,7 +373,10 @@ export default {
                 });
 
                 marker.addEventListener('click', () => {
-                    // --- 修改：添加详细地址显示 ---
+                    // --- 如果需要点击标记跳转 ---
+                    // this.router.push({ name: 'detail', query: { id: data.id, type: data.type } });
+
+                    // --- 当前逻辑：打开 InfoWindow ---
                     const content = `
                         <div class="info-window thing-info-window lost-info-window">
                             <h3>${data.title} (失物)</h3>
@@ -417,7 +425,10 @@ export default {
                 });
 
                 marker.addEventListener('click', () => {
-                    // --- 修改：添加详细地址显示 ---
+                    // --- 如果需要点击标记跳转 ---
+                    // this.router.push({ name: 'detail', query: { id: data.id, type: data.type } });
+
+                    // --- 当前逻辑：打开 InfoWindow ---
                     const content = `
                         <div class="info-window thing-info-window found-info-window">
                             <h3>${data.title} (拾物)</h3>
