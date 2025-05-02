@@ -29,12 +29,50 @@
     <div class="content-right">
       <div class="top-select-view flex-view">
         <div class="order-view">
-          <span class="title"></span>
-          <span class="tab" :class="contentData.selectTabIndex === index ? 'tab-select' : ''"
-            v-for="(item, index) in contentData.tabData" :key="index" @click="selectTab(index)">
-            {{ item }}
+          <span
+            class="tab tab-all"
+            :class="{ 'tab-select': contentData.selectTabIndex === 0 }"
+            @click="selectTab(0)"
+            :ref="el => tabRefs[0] = el"
+          >
+            <AppstoreOutlined /> 全部
           </span>
-          <span :style="{ left: contentData.tabUnderLeft + 'px' }" class="tab-underline"></span>
+          <span
+            class="tab tab-lost"
+            :class="{ 'tab-select': contentData.selectTabIndex === 1 }"
+            @click="selectTab(1)"
+            :ref="el => tabRefs[1] = el"
+          >
+            <QuestionCircleOutlined /> 失物
+          </span>
+          <span
+            class="tab tab-found"
+            :class="{ 'tab-select': contentData.selectTabIndex === 2 }"
+            @click="selectTab(2)"
+            :ref="el => tabRefs[2] = el"
+          >
+            <BulbOutlined /> 拾物
+          </span>
+          <span
+            class="tab tab-hot"
+            :class="{ 'tab-select': contentData.selectTabIndex === 3 }"
+            @click="selectTab(3)"
+            :ref="el => tabRefs[3] = el"
+          >
+            <FireOutlined /> 最热
+          </span>
+          <span
+            class="tab tab-latest"
+            :class="{ 'tab-select': contentData.selectTabIndex === 4 }"
+            @click="selectTab(4)"
+            :ref="el => tabRefs[4] = el"
+          >
+            <ClockCircleOutlined /> 最新
+          </span>
+          <span
+            class="tab-underline"
+            :style="{ left: contentData.tabUnderLeft + 'px', width: contentData.tabUnderWidth + 'px' }"
+          ></span>
         </div>
       </div>
       <a-spin :spinning="contentData.loading" style="min-height: 200px">
@@ -78,6 +116,8 @@ import { createSkimApi, listApi as listThingList } from '/@/api/index/thing';
 import { useUserStore } from '/@/store';
 import { BASE_URL } from '/@/store/constants';
 import { regionData } from 'element-china-area-data'; // 导入地区数据
+import { ref, reactive, onMounted, nextTick } from 'vue'; // 引入 ref 和 nextTick
+import { AppstoreOutlined, QuestionCircleOutlined, BulbOutlined, FireOutlined, ClockCircleOutlined } from '@ant-design/icons-vue';
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -94,9 +134,10 @@ const contentData = reactive({
     thing:undefined,
   },
 
-  tabData: ['最新', '最热', '失物信息','招领信息'],
+  tabData: ['全部', '失物', '拾物', '最热', '最新'],
   selectTabIndex: 0,
-  tabUnderLeft: 12,
+  tabUnderLeft: 0, // 初始值设为 0
+  tabUnderWidth: 0, // 新增：下划线宽度
 
   thingData: [],
   pageData: [],
@@ -105,6 +146,9 @@ const contentData = reactive({
   total: 0,
   pageSize: 12,
 });
+
+// 新增：用于存储 tab 元素的引用
+const tabRefs = ref([]);
 
 const notices = reactive([
   { title: '公告1', content: '这是公告内容1' },
@@ -119,9 +163,13 @@ const regionOptions = ref([
   ...regionData
 ]);
 
-onMounted(() => {
+onMounted(async () => {
   initSider();
-  getThingList({});
+  await getThingList({}); // 等待初始列表加载完成
+  // 使用 nextTick 确保 DOM 更新后再计算下划线位置
+  nextTick(() => {
+    calculateUnderlinePosition(contentData.selectTabIndex);
+  });
 });
 
 const initSider = () => {
@@ -158,20 +206,61 @@ const clickTag = (index) => {
   getThingList({ tag: contentData.selectTagId });
 };
 
-// 最新|最热|推荐
+// 新增：计算下划线位置和宽度的函数
+const calculateUnderlinePosition = (index) => {
+  const selectedTabElement = tabRefs.value[index];
+  if (selectedTabElement) {
+    // offsetLeft 是相对于父元素 .order-view 的左偏移量
+    // clientWidth 是元素的实际宽度
+    contentData.tabUnderLeft = selectedTabElement.offsetLeft;
+    contentData.tabUnderWidth = selectedTabElement.clientWidth;
+  }
+};
+
+// 最新|最热|推荐 -> 修改为处理新 tab 逻辑
 const selectTab = (index) => {
   contentData.selectTabIndex = index;
-  contentData.tabUnderLeft = 12 + 50 * index;
-  console.log(contentData.selectTabIndex);
-  let sort = index === 0 ? 'recent' : index === 1 ? 'hot' : 'recommend';
-  const data = { sort: sort };
-  if (contentData.selectTagId !== -1) {
-    data['tag'] = contentData.selectTagId;
-  } else {
-    data['c'] = getSelectedKey();
+  // contentData.tabUnderLeft = 12 + 50 * index; // 移除旧的固定计算方式
+  calculateUnderlinePosition(index); // 调用新函数计算位置
+
+  console.log('Selected Tab Index:', contentData.selectTabIndex);
+
+  let params = {};
+
+  switch (index) {
+    case 0: // 全部
+      // 不需要额外的 sort 或 type 参数
+      break;
+    case 1: // 失物
+      params['type'] = 'lost'; // 假设后端用 type='lost' 筛选失物
+      break;
+    case 2: // 拾物
+      params['type'] = 'found'; // 假设后端用 type='found' 筛选拾物
+      break;
+    case 3: // 最热
+      params.sort = 'hot';
+      break;
+    case 4: // 最新
+      params.sort = 'recent';
+      break;
   }
-  getThingList(data);
+
+  // 如果需要保留分类或标签筛选，在这里重新添加
+  if (contentData.selectedKeys.length > 0 && getSelectedKey() !== '-1') {
+      params['c'] = getSelectedKey();
+  }
+  if (contentData.selectTagId !== -1) {
+      params['tag'] = contentData.selectTagId;
+  }
+  // 如果选择了地区，也添加地区参数
+  if (selectedRegion.value.length > 0 && !selectedRegion.value.includes('all')) {
+      params['region'] = selectedRegion.value.join('/');
+  }
+
+
+  getThingList(params);
 };
+
 const handleDetail = (item) => {
   // 跳转新页面
   let userid = userStore.user_id
@@ -195,6 +284,8 @@ const changePage = (page) => {
 };
 const getThingList = (data) => {
   contentData.loading = true;
+  // 确保 data 包含 type 参数（如果需要）
+  console.log("Requesting thing list with params:", data);
   listThingList(data)
     .then((res) => {
       contentData.loading = false;
@@ -452,8 +543,8 @@ li {
     -ms-flex-align: center;
     align-items: center;
     height: 40px;
-    line-height: 40px;
-
+    line-height: 27px;
+    margin-top: 30px;
     .type-view {
       position: relative;
       font-weight: 400;
@@ -487,33 +578,85 @@ li {
       position: relative;
       color: #6c6c6c;
       font-size: 14px;
-
-      .title {
-        margin-right: 8px;
-      }
+      display: flex; // 改为 flex 布局方便处理间距和对齐
+      align-items: center; // 垂直居中
+      padding-bottom: 8px; // 增加下划线空间
 
       .tab {
-        color: #1efc17e0;
-        margin-right: 20px;
+        color: #666; // 默认文字颜色
+        margin-right: 20px; // 调整标签间距
+        padding: 10px 15px; // 增大内边距
         cursor: pointer;
-        font-size: 20px;
-        font-weight: bold;
-        
+        font-size: 18px; // 增大字体
+        font-weight: 500;
+        position: relative;
+        transition: all 0.3s ease; // 平滑过渡
+        border-radius: 8px; // 添加圆角
+        display: inline-flex; // 使图标和文字对齐
+        align-items: center; // 垂直居中
+        gap: 6px; // 图标和文字间距
+
+        .anticon {
+          font-size: 1.1em; // 图标稍大一点
+          transition: transform 0.3s ease;
+        }
+
+        &:last-child {
+          margin-right: 0;
+        }
+
+        &:hover {
+          transform: translateY(-3px) scale(1.05); // 悬停时上移并轻微放大
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); // 添加阴影
+
+          .anticon {
+             transform: rotate(15deg); // 悬停时图标轻微旋转
+          }
+        }
+
+        // --- 特色样式 ---
+        &.tab-all {
+          &:hover, &.tab-select { color: #1890ff; background-color: #e6f7ff; } // 蓝色系
+        }
+        &.tab-lost {
+          &:hover, &.tab-select { color: #faad14; background-color: #fffbe6; } // 黄色系
+        }
+        &.tab-found {
+          &:hover, &.tab-select { color: #52c41a; background-color: #f6ffed; } // 绿色系
+        }
+        &.tab-hot {
+          &:hover, &.tab-select { color: #ff4d4f; background-color: #fff1f0; } // 红色系
+        }
+        &.tab-latest {
+          &:hover, &.tab-select { color: #722ed1; background-color: #f9f0ff; } // 紫色系
+        }
+        // --- 特色样式结束 ---
       }
 
       .tab-select {
-        color: #152844;
+        font-weight: 600; // 选中时加粗
+        transform: translateY(0) scale(1); // 选中时恢复原位和大小
+        box-shadow: none; // 移除悬停阴影
+        // 使用上面定义的特色样式背景色和颜色
       }
 
       .tab-underline {
         position: absolute;
         bottom: 0;
-        left: 84px;
-        width: 16px;
-        height: 4px;
-        background: #4684e2;
-        -webkit-transition: left 0.3s;
-        transition: left 0.3s;
+        height: 4px; // 调整下划线高度
+        // 使用更鲜艳的渐变色或单色
+        background: linear-gradient(to right, #ebff5f, #feb47b, #2ade79); // 主题渐变色
+        background-size: 200% 100%; // 用于动画
+        border-radius: 2px;
+        transition: left 0.4s cubic-bezier(0.65, 0, 0.35, 1), width 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+        animation: underline-flow 3s linear infinite; // 添加流动动画
+      }
+
+      // 下划线流动动画
+      @keyframes underline-flow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
       }
     }
   }

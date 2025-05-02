@@ -13,6 +13,7 @@ enum URL {
     removeWishUser = '/myapp/index/thing/removeWishUser',
     listUserThing = '/myapp/index/thing/listUserThing',
     create = '/myapp/index/thing/create',
+    createFound = '/myapp/index/thing/createFound', // 新增：拾物创建路由
     update = '/myapp/index/thing/update',
     addSorce = '/myapp/index/thing/addScore',
     createSkim = '/myapp/index/thing/createSkim',
@@ -33,6 +34,8 @@ const removeWishUserApi = async (params: any) => post<any>({ url: URL.removeWish
 
 const listUserThingApi = async (params: any) => get<any>({ url: URL.listUserThing, params: params, data: {}, headers: {} });
 const createApi = async (data:any) => post<any>({ url: URL.create, params: {}, data: data, headers: {'Content-Type': 'multipart/form-data;charset=utf-8'}});
+// 新增：拾物创建 API 函数
+const createFoundApi = async (data:any) => post<any>({ url: URL.createFound, params: {}, data: data, headers: {'Content-Type': 'multipart/form-data;charset=utf-8'}});
 const updateApi = async (params: any, data:any) => post<any>({ url: URL.update, params: params, data: data, headers: {'Content-Type': 'multipart/form-data;charset=utf-8'} });
 const addScoreApi = async (params: any) => post<any>({ url: URL.addSorce, params: params, headers: {} });
 const createSkimApi = async (data: any) =>
@@ -46,6 +49,7 @@ const getSkimApi = async (params: any) => get<any>({ url: URL.getSkim, params: p
 
 export {
     addCollectUserApi, addScoreApi, addWishUserApi, createApi, createSkimApi, detailApi, getCollectThingListApi, getSkimApi, getWishThingListApi, listApi, listUserThingApi, removeCollectUserApi, removeWishUserApi, updateApi,
-    getUserPointsApi
+    getUserPointsApi,
+    createFoundApi // 新增导出
 };
 

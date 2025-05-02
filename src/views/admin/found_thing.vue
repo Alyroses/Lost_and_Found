@@ -106,11 +106,11 @@ import { message, SelectProps } from 'ant-design-vue';
 import type { ColumnType } from 'ant-design-vue/es/table';
 import { ref, reactive, onMounted } from 'vue';
 import { debounce } from 'lodash-es';
-import { ReloadOutlined, FileImageOutlined /*, 其他需要的图标 */ } from '@ant-design/icons-vue';
+import { ReloadOutlined, FileImageOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons-vue';
 
 // --- 响应式数据 ---
 const keyword = ref('');
-const filterStatus = ref<string>(''); // 筛选状态
+const filterStatus = ref<string>('1'); // 默认筛选“已认领”
 
 const data = reactive({
   foundThingList: [], // 存储拾物列表数据
@@ -168,9 +168,23 @@ const getFoundThingList = (params: { keyword?: string; status?: string } = {}) =
   // 模拟数据和结束 loading
   setTimeout(() => {
       data.loading = false;
-      // data.foundThingList = [ /* 填充模拟数据 */ ];
-      // data.total = data.foundThingList.length;
-      message.info("获取拾物列表功能待实现");
+      // 模拟分页数据
+      const mockData = [
+          { id: 1, index: 1, cover: 'https://via.placeholder.com/64?text=Found1', title: '拾到的钱包', location: '图书馆', found_time: '2023-10-27 10:00', user: { username: '张三' }, status: '1' },
+          { id: 2, index: 2, cover: 'https://via.placeholder.com/64?text=Found2', title: '拾到的钥匙', location: '教学楼A', found_time: '2023-10-26 15:30', user: { username: '李四' }, status: '0' },
+          { id: 3, index: 3, cover: 'https://via.placeholder.com/64?text=Found3', title: '拾到的雨伞', location: '食堂', found_time: '2023-10-28 12:00', user: { username: '王五' }, status: '1' },
+      ];
+      // 根据筛选条件模拟过滤
+      let filteredData = mockData;
+      if (apiParams.keyword) {
+          filteredData = filteredData.filter(item => item.title.includes(apiParams.keyword));
+      }
+      if (apiParams.status) {
+          filteredData = filteredData.filter(item => item.status === apiParams.status);
+      }
+      data.foundThingList = filteredData.map((item, index) => ({ ...item, index: (data.page - 1) * data.pageSize + index + 1 }));
+      data.total = filteredData.length; // 模拟总数
+      message.info("获取拾物列表功能待实现 (模拟数据)");
   }, 500);
 };
 
@@ -240,7 +254,7 @@ const getStatusText = (status: string) => {
 
 // --- 生命周期钩子 ---
 onMounted(() => {
-  getFoundThingList(); // 初始加载
+  getFoundThingList({ status: filterStatus.value }); // 初始加载
 });
 
 </script>
