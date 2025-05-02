@@ -160,12 +160,21 @@ const constantRouterMap = [
   {
     path: '/admin',
     name: 'admin',
-    redirect: '/admin/thing',
+    redirect: '/admin/lost-thing',
     component: () => import('/@/views/admin/main.vue'),
     children: [
       { path: 'overview', name: 'overview', component: () => import('/@/views/admin/overview.vue') },
       { path: 'order', name: 'order', component: () => import('/@/views/admin/order.vue') },
-      { path: 'thing', name: 'thing', component: () => import('/@/views/admin/thing.vue') },
+      {
+        path: 'lost-thing',
+        name: 'lostThingManage',
+        component: () => import('/@/views/admin/thing.vue')
+      },
+      {
+        path: 'found-thing',
+        name: 'foundThingManage',
+        component: () => import('/@/views/admin/found_thing.vue')
+      },
       { path: 'comment', name: 'comment', component: () => import('/@/views/admin/comment.vue') },
       { path: 'user', name: 'user', component: () => import('/@/views/admin/user.vue') },
       { path: 'classification', name: 'classification', component: () => import('/@/views/admin/classification.vue') },
