@@ -13,7 +13,13 @@
         <a-spin :spinning="tData.loading" style="min-height: 200px">
           <div class="things flex-view">
             <div class="thing-item item-column-4" v-for="item in tData.pageData" @click="handleDetail(item)">
-              <div class="img-view"> <img :src="item.cover" /></div>
+              <div class="img-view">
+                <img
+                  :src="item.cover"
+                  @error="handleImageError(item.cover, $event)"
+                  :alt="item.title"
+                />
+              </div>
               <div class="info-view">
                 <h3 class="thing-name">{{ item.title.substring(0, 12) }}</h3>
                 <span>
@@ -41,11 +47,12 @@
 </template>
 
 <script setup>
-  import { listApi as listThingList } from '/@/api/index/thing';
+  import { listApi as listThingList } from '/@/api/index/thing'; 
   import { useUserStore } from '/@/store';
-  import { BASE_URL } from '/@/store/constants';
   import Header from '/@/views/index/components/header.vue';
   import Footer from '/@/views/index/components/footer.vue';
+  import { reactive, onMounted, watch } from 'vue'; 
+  import { useRouter, useRoute } from 'vue-router'; 
 
   const userStore = useUserStore();
   const router = useRouter();
@@ -53,11 +60,9 @@
 
   const tData = reactive({
     loading: false,
-
     keyword: '',
     thingData: [],
     pageData: [],
-
     page: 1,
     total: 0,
     pageSize: 20,
@@ -67,7 +72,6 @@
     search();
   });
 
-  // 监听query参数
   watch(
     () => route.query,
     (newPath, oldPath) => {
@@ -77,43 +81,60 @@
   );
 
   const search = () => {
-    // 检查 route.query.keyword 是否存在
     tData.keyword = route.query.keyword?.trim() || '未定义关键词';
     getThingList({ keyword: tData.keyword });
   };
 
-  // 分页事件
   const changePage = (page) => {
     tData.page = page;
     let start = (tData.page - 1) * tData.pageSize;
-    tData.pageData = tData.thingData.slice(start, start + tData.pageSize);
+    const currentPageData = tData.thingData.slice(start, start + tData.pageSize);
+    console.log('Data being assigned to pageData (from changePage):', JSON.stringify(currentPageData, null, 2)); 
+    if (currentPageData.length > 0) {
+      console.log('First item cover URL before rendering (from changePage):', currentPageData[0].cover);
+    }
+    tData.pageData = currentPageData;
     console.log('第' + tData.page + '页');
   };
+
   const handleDetail = (item) => {
-    // 跳转新页面
     let text = router.resolve({ name: 'detail', query: { id: item.id } });
     window.open(text.href, '_blank');
   };
 
-  const getThingList = (data) => {
+  const getThingList = async (data) => { 
     tData.loading = true;
-    listThingList(data)
-      .then((res) => {
-        res.data.forEach((item, index) => {
-          if (item.cover) {
-            item.cover = BASE_URL + item.cover;
-          }
-        });
+    try {
+      const res = await listThingList(data);
+      console.log('API Response in getThingList:', JSON.stringify(res, null, 2)); 
+
+      if (res && res.code === 0 && Array.isArray(res.data)) {
         tData.thingData = res.data;
         tData.total = tData.thingData.length;
-        changePage(1);
-        tData.loading = false;
-      })
-      .catch((err) => {
-        console.log(err);
-        tData.loading = false;
-      });
+        if (tData.thingData.length > 0) {
+            console.log('First item cover URL after assignment:', tData.thingData[0].cover);
+        }
+        changePage(1); 
+      } else {
+        console.error('获取列表失败或数据格式无效:', res);
+        tData.thingData = []; 
+        tData.total = 0;
+        tData.pageData = [];
+      }
+    } catch (err) {
+      console.error('请求出错:', err);
+      tData.thingData = []; 
+      tData.total = 0;
+      tData.pageData = [];
+    } finally {
+      tData.loading = false; 
+    }
   };
+
+  const handleImageError = (url, event) => {
+    console.error(`图片加载失败: ${url}`, event);
+  };
+
 </script>
 <style scoped lang="less">
   .content-margin {
@@ -181,7 +202,6 @@
     cursor: pointer;
 
     .img-view {
-      //text-align: center;
       height: 200px;
       width: 255px;
 
@@ -195,7 +215,6 @@
     }
 
     .info-view {
-      //background: #f6f9fb;
       overflow: hidden;
       padding: 0 16px;
 

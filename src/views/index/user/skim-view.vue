@@ -121,7 +121,7 @@ const getThingSkimList = () => {
             // 如果返回的数据中存在 cover，拼接 BASE_URL
             res.data.forEach((item) => {
                 if (item.cover) {
-                    item.cover = BASE_URL + item.cover;
+                    item.cover = item.cover;
                 }
             });
 

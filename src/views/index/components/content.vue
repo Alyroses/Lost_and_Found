@@ -40,14 +40,16 @@
       <a-spin :spinning="contentData.loading" style="min-height: 200px">
         <div class="pc-thing-list flex-view">
           <div v-for="item in contentData.pageData" :key="item.id" @click="handleDetail(item)"
-            class="thing-item item-column-3"><!---->
-            <div class="img-view"> <img :src="item.cover" /></div>
+            class="thing-item item-column-3">
+            <div class="img-view">
+              <img :src="item.cover" :alt="item.title" />
+            </div>
             <div class="info-view">
               <h3 class="thing-name">{{ item.title.substring(0, 12) }}</h3>
               <span>
                 <span class="a-price-symbol"></span>
                 <span class="a-price">地点：{{ item.location }}</span><br>
-                <span class="a-price">积分奖励：{{ item.price }} 积分</span>
+                <span class="a-price">发布者：{{ item.user?.username || '匿名' }}</span>
               </span>
             </div>
           </div>
@@ -196,12 +198,7 @@ const getThingList = (data) => {
   listThingList(data)
     .then((res) => {
       contentData.loading = false;
-      res.data.forEach((item, index) => {
-        if (item.cover) {
-          item.cover = BASE_URL + item.cover;
-        }
-      });
-      console.log(res);
+      console.log(res); // 确认 res.data 中包含 user.username
       contentData.thingData = res.data;
       contentData.total = contentData.thingData.length;
       changePage(1);
@@ -536,19 +533,37 @@ li {
       margin-top: 26px;
       margin-bottom: 36px;
       cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease; // 为整个卡片添加过渡效果
+
+      &:hover {
+         // 可选：整个卡片轻微上移和更明显的阴影
+         transform: translateY(-5px);
+         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+      }
 
       .img-view {
-        //text-align: center;
         height: 200px;
-        width: 200px;
+        width: 200px; // 保持宽度与 img 一致或稍大以容纳边框
+        border-radius: 8px; // 添加圆角
+        overflow: hidden; // 隐藏放大的图片超出部分
+        border: 2px solid #cff4e3; // 添加细边框
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08); // 添加轻微阴影
+        transition: box-shadow 0.3s ease; // 为阴影添加过渡
 
         img {
-          height: 200px;
-          width: 200px;
-          margin: 0 auto;
+          height: 100%; // 改为 100% 以填充容器
+          width: 100%;  // 改为 100% 以填充容器
+          // margin: 0 auto; // 不再需要 margin
           background-size: cover;
           object-fit: cover;
+          display: block; // 确保 img 是块级元素，避免底部空隙
+          transition: transform 0.3s ease; // 为放大效果添加平滑过渡
         }
+      }
+
+      // 鼠标悬停在 thing-item 上时，放大 img-view 里的 img
+      &:hover .img-view img {
+        transform: scale(1.1); // 放大 10%
       }
 
       .info-view {

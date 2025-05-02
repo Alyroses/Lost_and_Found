@@ -63,7 +63,7 @@ const getCollectThingList =()=> {
   let username = userStore.user_name
   getCollectThingListApi({username: username}).then(res => {
     res.data.forEach(item => {
-      item.cover = BASE_URL + item.cover
+      item.cover = item.cover
     })
     console.log(res.data)
     pageData.collectData = res.data

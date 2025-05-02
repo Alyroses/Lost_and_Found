@@ -329,7 +329,7 @@ const handleEdit = (record: any) => {
     }
   }
   if (modal.form.cover) {
-    modal.form.coverUrl = BASE_URL + modal.form.cover;
+    modal.form.coverUrl = modal.form.cover;
     modal.form.cover = undefined;
   }
 };

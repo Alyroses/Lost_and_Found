@@ -253,7 +253,7 @@
         tData.form = res.data[0]
       }
       if (tData.form.cover) {
-        tData.form.avatar = BASE_URL + tData.form.cover
+        tData.form.avatar = tData.form.cover
       }
       loading.value = false
     }).catch(err => {

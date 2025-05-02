@@ -74,7 +74,7 @@ const getOrderList = () => {
     .then((res) => {
       res.data.forEach((item, index) => {
         if (item.cover) {
-          item.cover = BASE_URL + item.cover;
+          item.cover = item.cover;
         }
       });
       orderData.value = res.data;

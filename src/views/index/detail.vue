@@ -368,7 +368,7 @@ const getThingDetail = () => {
   detailApi({ id: thingId.value })
     .then((res) => {
       detailData.value = res.data;
-      detailData.value.cover = BASE_URL + detailData.value.cover;
+      detailData.value.cover = detailData.value.cover;
     })
     .catch((err) => {
       message.error('获取详情失败');
@@ -445,7 +445,7 @@ const getRecommendThing = () => {
     .then((res) => {
       res.data.forEach((item, index) => {
         if (item.cover) {
-          item.cover = BASE_URL + item.cover;
+          item.cover = item.cover;
         }
       });
       console.log(res);

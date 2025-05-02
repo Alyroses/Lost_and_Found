@@ -127,7 +127,7 @@ import { BASE_URL } from '/@/store/constants';
         res.data.forEach((item: any, index: any) => {
           item.index = index + 1;
           if (item.image) {
-            item.image = BASE_URL + item.image;
+            item.image = item.image;
           }
         });
         data.list = res.data;
