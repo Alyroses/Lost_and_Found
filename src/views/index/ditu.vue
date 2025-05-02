@@ -30,14 +30,18 @@ import Header from '/@/views/index/components/header.vue';
 import Footer from '/@/views/index/components/footer.vue';
 import redMarkerIcon from '/src/assets/icons/svg/red-marker.svg'; // 假设红色图标在此路径
 import greenMarkerIcon from '/src/assets/icons/svg/green-marker.svg';
+// 新增：导入拾物图标
+import foundMarkerIcon from '/src/assets/icons/svg/拾物定位.svg';
 
 export default {
     components: { Footer, Header },
     data() {
         return {
             map: null,
-            markers: [],
-            thingData: [],
+            markers: [], // 失物标记
+            foundMarkers: [], // 新增：拾物标记
+            thingData: [], // 失物数据
+            foundThingData: [], // 新增：拾物数据
             zoomLevel: 7, // 默认缩放级别
             currentAddress: '',
             geocoder: null,
@@ -55,11 +59,17 @@ export default {
                 if (!window.BMapGL) await this.loadBaiduMapSDK();
                 this.createMapInstance();
                 this.initGeocoder();
-                await this.getThingList();
-                await this.startLocationFlow();
+                // 修改：并行获取失物和拾物列表
+                await Promise.all([
+                    this.getThingList(),
+                    this.getFoundThingList() // 新增调用
+                ]);
+                await this.startLocationFlow(); // 定位应在获取数据之后，以便添加标记时地图已初始化
             } catch (error) {
                 console.error('地图初始化失败:', error);
-                this.$alert('地图加载失败，请刷新页面重试');
+                // 移除或替换 this.$alert，因为它可能不是 Vue 3 的标准方法
+                // 使用 console.error 或其他 UI 库的提示方法
+                console.error('地图加载失败，请刷新页面重试');
             }
         },
 
@@ -175,17 +185,31 @@ export default {
         async handleLocationSuccess(lng, lat, source) {
             try {
                 this.clearExistingMarker();
-                this.map.centerAndZoom(new BMapGL.Point(lng, lat), this.zoomLevel);
-                
-                // 获取详细地理信息
-                this.locationDetail = await this.reverseGeocode(lng, lat);
-                this.currentAddress = this.locationDetail?.formatted || '未知位置';
-                
-                // 添加标记和信息窗口
+                const point = new BMapGL.Point(lng, lat);
+                // --- 修改：先设置中心点和缩放级别 ---
+                this.map.centerAndZoom(point, this.zoomLevel);
+                // --- 修改结束 ---
+
+                const detail = await this.reverseGeocode(lng, lat);
+                if (detail) {
+                    this.currentAddress = detail.formatted;
+                    this.locationDetail = detail;
+                    console.log(`定位成功 (${source}):`, detail);
+                } else {
+                    this.currentAddress = `经度: ${lng.toFixed(4)}, 纬度: ${lat.toFixed(4)}`;
+                    this.locationDetail = null; // 清除旧详情
+                    console.log(`定位成功 (${source}), 但逆地址解析失败`);
+                }
+                // --- 修改：在地图中心设置完成后再添加标记 ---
                 this.addLocationMarker(lng, lat);
-                this.addMarkers();
+                // --- 修改结束 ---
             } catch (error) {
-                console.error('位置处理失败:', error);
+                console.error('处理定位结果时出错:', error);
+                this.currentAddress = '定位处理失败';
+                this.locationDetail = null;
+                // 可以选择设置默认中心点
+                // this.setDefaultCenter();
+                // 抛出错误以便上层知道处理失败
                 throw error;
             }
         },
@@ -273,7 +297,7 @@ export default {
         async getThingList() {
             try {
                 // 调用后端 API 获取失物列表
-                const res = await listThingList({ type: 'lost' }); // 假设可以按类型筛选失物
+                const res = await listThingList({ type: 'lost', status: '1' }); // 明确获取已审核的失物
                 // 确保后端返回的数据包含所需字段，包括嵌套的 user 信息
                 this.thingData = res.data.filter(item => item.longitude && item.latitude).map(item => ({
                     lat: parseFloat(item.latitude),
@@ -285,19 +309,46 @@ export default {
                     mobile: item.mobile || '未提供', // 联系电话
                     // 处理用户信息，优先用 nickname，否则用 username
                     userNickname: item.user?.nickname || item.user?.username || '匿名用户',
-                    id: item.id
+                    id: item.id,
+                    type: 'lost' // 添加类型标识
                 }));
-                console.log("Fetched and processed thing data for markers:", this.thingData); // 调试日志
-                this.addMarkers(); // 获取数据后添加标记
+                console.log("Fetched and processed LOST thing data:", this.thingData);
+                this.addMarkers(); // 获取数据后添加失物标记
             } catch (error) {
                 console.error('获取失物数据失败:', error);
                 // this.$message.error('加载失物信息失败，请稍后重试');
             }
         },
 
-        addMarkers() {
-            this.clearAllMarkers(); // 清除旧的失物标记
+        // --- 新增：获取拾物列表 ---
+        async getFoundThingList() {
+            try {
+                // 调用后端 API 获取拾物列表
+                const res = await listThingList({ type: 'found', status: '1' }); // 明确获取已审核的拾物
+                // 处理返回的数据
+                this.foundThingData = res.data.filter(item => item.longitude && item.latitude).map(item => ({
+                    lat: parseFloat(item.latitude),
+                    lng: parseFloat(item.longitude),
+                    title: item.title || '无标题',
+                    location: item.location || '未知地点',
+                    description: item.description || '无描述',
+                    cover: item.cover, // 图片 URL
+                    mobile: item.mobile || '未提供', // 联系电话
+                    // 处理用户信息
+                    userNickname: item.user?.nickname || item.user?.username || '匿名用户',
+                    id: item.id,
+                    type: 'found' // 添加类型标识
+                }));
+                console.log("Fetched and processed FOUND thing data:", this.foundThingData);
+                this.addFoundMarkers(); // 获取数据后添加拾物标记
+            } catch (error) {
+                console.error('获取拾物数据失败:', error);
+            }
+        },
+        // --- 获取拾物列表结束 ---
 
+        addMarkers() {
+            // this.clearAllMarkers(); // 不在此处清除，统一在需要时清除
             if (!this.thingData || this.thingData.length === 0) {
                 console.log("没有失物数据可供标记");
                 return;
@@ -305,39 +356,33 @@ export default {
 
             this.thingData.forEach(data => {
                 if (isNaN(data.lng) || isNaN(data.lat)) {
-                    console.warn("无效的经纬度，跳过标记:", data);
+                    console.warn("无效的失物经纬度，跳过标记:", data);
                     return;
                 }
 
                 const point = new BMapGL.Point(data.lng, data.lat);
                 const marker = new BMapGL.Marker(point, {
-                    icon: new BMapGL.Icon(greenMarkerIcon, new BMapGL.Size(32, 32))
+                    icon: new BMapGL.Icon(greenMarkerIcon, new BMapGL.Size(32, 32)) // 使用绿色图标表示失物
                 });
 
                 marker.addEventListener('click', () => {
-                    // *** 修改：构建包含用户昵称、电话、图片和描述的信息窗口内容 ***
                     const content = `
-                        <div class="info-window thing-info-window">
-                            <h3>${data.title}</h3>
-                            ${data.cover ? `<img src="${data.cover}" alt="${data.title}" class="info-window-cover" >` : '<p class="no-cover">暂无图片</p>'}
+                        <div class="info-window thing-info-window lost-info-window">
+                            <h3>${data.title} (失物)</h3>
+                            ${data.cover ? `<img src="${data.cover}" alt="${data.title}" style="height: 160px; width: 240px;">` : '<p class="no-cover">暂无图片</p>'}
                             <p class="location">📍 ${data.location}</p>
                             <p class="description">${data.description}</p>
                             <div class="details">
                                 <p><strong>发布者:</strong> ${data.userNickname}</p>
                                 <p><strong>联系电话:</strong> ${data.mobile}</p>
                             </div>
-                            <!-- 可以添加查看详情按钮，需要后端提供物品详情页路由和 ID -->
-                            <button onclick="viewDetail(${data.id})">查看详情</button> 
+                            <!-- <button onclick="viewDetail(${data.id})">查看详情</button> -->
                         </div>
                     `;
-
-                    // *** 修改：移除固定的 height 选项 ***
                     const infoWindow = new BMapGL.InfoWindow(content, {
                         width: 280,
-                        // height: 240, // 移除固定高度
-                        title: '失物详情' // 这个 title 是 BMapGL InfoWindow 的标题，不是 HTML 里的 h3
+                        title: '失物详情'
                     });
-
                     this.map.openInfoWindow(infoWindow, point);
                 });
 
@@ -347,6 +392,54 @@ export default {
             console.log(`添加了 ${this.markers.length} 个失物标记`);
         },
 
+        // --- 新增：添加拾物标记 ---
+        addFoundMarkers() {
+            if (!this.foundThingData || this.foundThingData.length === 0) {
+                console.log("没有拾物数据可供标记");
+                return;
+            }
+
+            this.foundThingData.forEach(data => {
+                if (isNaN(data.lng) || isNaN(data.lat)) {
+                    console.warn("无效的拾物经纬度，跳过标记:", data);
+                    return;
+                }
+
+                const point = new BMapGL.Point(data.lng, data.lat);
+                // 使用导入的拾物图标
+                const marker = new BMapGL.Marker(point, {
+                    icon: new BMapGL.Icon(foundMarkerIcon, new BMapGL.Size(32, 32)) // 调整图标大小
+                });
+
+                marker.addEventListener('click', () => {
+                    // 构建拾物信息窗口内容
+                    const content = `
+                        <div class="info-window thing-info-window found-info-window">
+                            <h3>${data.title} (拾物)</h3>
+                            ${data.cover ? `<img src="${data.cover}" alt="${data.title}" class="info-window-cover" style="height: 160px; width: 240px;">` : '<p class="no-cover">暂无图片</p>'}
+                            <p class="location">📍 ${data.location}</p>
+                            <p class="description">${data.description}</p>
+                            <div class="details">
+                                <p><strong>拾得者:</strong> ${data.userNickname}</p>
+                                <p><strong>联系电话:</strong> ${data.mobile}</p>
+                            </div>
+                            <!-- <button onclick="viewDetail(${data.id})">查看详情</button> -->
+                        </div>
+                    `;
+                    const infoWindow = new BMapGL.InfoWindow(content, {
+                        width: 280,
+                        title: '拾物详情'
+                    });
+                    this.map.openInfoWindow(infoWindow, point);
+                });
+
+                this.foundMarkers.push(marker); // 添加到拾物标记数组
+                this.map.addOverlay(marker);
+            });
+            console.log(`添加了 ${this.foundMarkers.length} 个拾物标记`);
+        },
+        // --- 添加拾物标记结束 ---
+
         clearExistingMarker() {
             if (this.locationMarker) {
                 this.map.removeOverlay(this.locationMarker);
@@ -354,14 +447,26 @@ export default {
             }
         },
 
+        // --- 修改：清除所有类型的标记 ---
         clearAllMarkers() {
+            // 清除失物标记
             this.markers.forEach(marker => this.map.removeOverlay(marker));
             this.markers = [];
+            // 清除拾物标记
+            this.foundMarkers.forEach(marker => this.map.removeOverlay(marker));
+            this.foundMarkers = [];
+            console.log("Cleared all thing markers");
         },
+        // --- 修改结束 ---
 
         refreshLocation() {
             if (this.isLocating) return;
             this.isLocating = true;
+            // 清除旧的定位标记和详情
+            this.clearExistingMarker();
+            this.currentAddress = '正在重新定位...';
+            this.locationDetail = null;
+            // 重新开始定位流程
             this.startLocationFlow().finally(() => {
                 this.isLocating = false;
             });
@@ -521,8 +626,7 @@ export default {
 
     .info-window-cover {
         /* 修改：设置指定的宽度和高度 */
-        width: 241px;
-        height: 150px;
+        
         object-fit: cover; /* 保持 cover 以填充区域，可能会裁剪 */
         margin-bottom: 8px;
         border-radius: 4px;
@@ -560,5 +664,27 @@ export default {
             margin: 3px 0;
         }
     }
+}
+
+/* 可以为不同类型的 InfoWindow 添加特定样式 */
+:deep(.lost-info-window) {
+    /* 失物窗口特定样式 */
+    border-left: 4px solid #4CAF50; /* 绿色边框 */
+}
+
+:deep(.found-info-window) {
+    /* 拾物窗口特定样式 */
+    border-left: 4px solid #ff9800; /* 橙色边框 */
+}
+
+:deep(.thing-info-window) {
+    /* ... existing common styles ... */
+
+    h3 { /* content 内部的标题 */
+        /* ... existing h3 styles ... */
+        border-bottom: 1px solid #eee; /* 添加下边框 */
+    }
+
+    /* ... other existing styles ... */
 }
 </style>
