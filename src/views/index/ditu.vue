@@ -298,12 +298,13 @@ export default {
             try {
                 // 调用后端 API 获取失物列表
                 const res = await listThingList({ type: 'lost', status: '1' }); // 明确获取已审核的失物
-                // 确保后端返回的数据包含所需字段，包括嵌套的 user 信息
+                // 确保后端返回的数据包含所需字段，包括嵌套的 user 信息 和 detail_location
                 this.thingData = res.data.filter(item => item.longitude && item.latitude).map(item => ({
                     lat: parseFloat(item.latitude),
                     lng: parseFloat(item.longitude),
                     title: item.title || '无标题',
-                    location: item.location || '未知地点',
+                    location: item.location || '未知地区', // 省市区
+                    detailLocation: item.detail_location || '未提供', // 新增：详细地址
                     description: item.description || '无描述',
                     cover: item.cover, // 图片 URL
                     mobile: item.mobile || '未提供', // 联系电话
@@ -325,12 +326,13 @@ export default {
             try {
                 // 调用后端 API 获取拾物列表
                 const res = await listThingList({ type: 'found', status: '1' }); // 明确获取已审核的拾物
-                // 处理返回的数据
+                // 处理返回的数据，包含 detail_location
                 this.foundThingData = res.data.filter(item => item.longitude && item.latitude).map(item => ({
                     lat: parseFloat(item.latitude),
                     lng: parseFloat(item.longitude),
                     title: item.title || '无标题',
-                    location: item.location || '未知地点',
+                    location: item.location || '未知地区', // 省市区
+                    detailLocation: item.detail_location || '未提供', // 新增：详细地址
                     description: item.description || '无描述',
                     cover: item.cover, // 图片 URL
                     mobile: item.mobile || '未提供', // 联系电话
@@ -366,11 +368,13 @@ export default {
                 });
 
                 marker.addEventListener('click', () => {
+                    // --- 修改：添加详细地址显示 ---
                     const content = `
                         <div class="info-window thing-info-window lost-info-window">
                             <h3>${data.title} (失物)</h3>
                             ${data.cover ? `<img src="${data.cover}" alt="${data.title}" style="height: 160px; width: 240px;">` : '<p class="no-cover">暂无图片</p>'}
-                            <p class="location">📍 ${data.location}</p>
+                            <p class="location">📍 地区: ${data.location}</p>
+                            <p class="detail-location">🗺️ 详细地点: ${data.detailLocation}</p> 
                             <p class="description">${data.description}</p>
                             <div class="details">
                                 <p><strong>发布者:</strong> ${data.userNickname}</p>
@@ -379,6 +383,7 @@ export default {
                             <!-- <button onclick="viewDetail(${data.id})">查看详情</button> -->
                         </div>
                     `;
+                    // --- 修改结束 ---
                     const infoWindow = new BMapGL.InfoWindow(content, {
                         width: 280,
                         title: '失物详情'
@@ -412,12 +417,13 @@ export default {
                 });
 
                 marker.addEventListener('click', () => {
-                    // 构建拾物信息窗口内容
+                    // --- 修改：添加详细地址显示 ---
                     const content = `
                         <div class="info-window thing-info-window found-info-window">
                             <h3>${data.title} (拾物)</h3>
                             ${data.cover ? `<img src="${data.cover}" alt="${data.title}" class="info-window-cover" style="height: 160px; width: 240px;">` : '<p class="no-cover">暂无图片</p>'}
-                            <p class="location">📍 ${data.location}</p>
+                            <p class="location">📍 地区: ${data.location}</p>
+                            <p class="detail-location">🗺️ 详细地点: ${data.detailLocation}</p>
                             <p class="description">${data.description}</p>
                             <div class="details">
                                 <p><strong>拾得者:</strong> ${data.userNickname}</p>
@@ -426,6 +432,7 @@ export default {
                             <!-- <button onclick="viewDetail(${data.id})">查看详情</button> -->
                         </div>
                     `;
+                     // --- 修改结束 ---
                     const infoWindow = new BMapGL.InfoWindow(content, {
                         width: 280,
                         title: '拾物详情'
@@ -686,5 +693,14 @@ export default {
     }
 
     /* ... other existing styles ... */
+    .location, .detail-location { /* 同时为地区和详细地点设置样式 */
+        color: #409eff;
+        font-weight: 500;
+        margin-bottom: 5px;
+        font-size: 14px; /* 稍大一点 */
+    }
+    .detail-location {
+        color: #67C23A; /* 可以给详细地点一个不同的颜色 */
+    }
 }
 </style>
