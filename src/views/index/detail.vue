@@ -558,17 +558,26 @@ const showReplyInput = (item) => {
 @error-color: #ff4d4f;
 
 .detail {
-  background-color: #f8f9fa; // 页面背景色
+  // background-color: #f8f9fa; // 可以注释掉或移除纯色背景
+  background-image: url('/bg_main.jpg'); // 添加背景图片路径
+  background-size: cover; // 使图片覆盖整个区域
+  background-position: center center; // 居中图片
+  background-repeat: no-repeat; // 防止图片重复
+  background-attachment: fixed; // 固定背景，产生视差效果
+  min-height: 100vh; // 确保容器至少和视口一样高
 }
 
 .detail-content {
   width: 1100px;
   max-width: 90%; // 响应式调整
-  margin: 30px auto; // 上下边距调整
+  margin: 46px auto; // 上下边距调整
   padding: 20px;
-  background-color: #fff;
+  // background-color: #eee3e3; // 移除或注释掉旧颜色
+  background-color: rgba(255, 255, 255, 0.9); // 修改：使用半透明白色背景
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(5px); // 可选：添加模糊效果，增强玻璃感
+  -webkit-backdrop-filter: blur(5px); // 兼容 Safari
 }
 
 .detail-content-top {
@@ -583,7 +592,7 @@ const showReplyInput = (item) => {
   flex: 0 0 300px; // 固定图片容器宽度
   height: 300px; // 固定高度
   position: relative;
-  border-radius: 10px;
+  border-radius: 24px;
   overflow: hidden; // 隐藏伪元素超出部分
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 
