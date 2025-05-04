@@ -2,98 +2,76 @@
   <div class="detail">
     <Header />
 
+    <!-- 修改：优化 detail-content 结构和样式 -->
     <div class="detail-content">
+      <!-- 顶部信息区域 -->
       <div class="detail-content-top">
-        <div style="position: relative">
-          <div class="thing-infos-view">
-            <div class="thing-infos">
-              <div class="thing-img-box">
-                <img :src="detailData.cover" />
-              </div>
-              <div class="thing-info-box">
-                <div class="thing-state">
-                  <span class="state hidden-sm">信息状态</span>
-                  <span>有效</span>
-                </div>
-                <h1 class="thing-name">{{ detailData.title }}</h1>
-                <span>
-                  <span class="a-price-symbol"></span>
-                  <span class="a-price" style="font-size: 20px">积分奖励：{{ detailData.price }} 积分</span>
-                </span>
-                <div class="translators flex-view" style="">
-                  <span>物品类别：</span>
-                  <span class="name">{{ detailData.classification_title }}</span>
-                </div>
-                <div class="translators flex-view" style="">
-                  <span>地点：</span>
-                  <span class="name">{{ detailData.location }}</span>
-                </div>
-                <a-button type="primary" @click="handleAdd()"><span>认领</span></a-button>
-              </div>
-            </div>
-            <div class="thing-counts hidden-sm">
-              <div class="count-item flex-view pointer" @click="addToWish()">
-                <div class="count-img">
-                  <img :src="WantIcon" />
-                </div>
-                <div class="count-box flex-view">
-                  <div class="count-text-box">
-                    <span class="count-title">加入寻找</span>
-                  </div>
-                  <div class="count-num-box">
-                    <span class="num-text">{{ detailData.wish_count }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="count-item flex-view pointer" @click="collect()">
-                <div class="count-img">
-                  <img :src="RecommendIcon" />
-                </div>
-                <div class="count-box flex-view">
-                  <div class="count-text-box">
-                    <span class="count-title">收藏</span>
-                  </div>
-                  <div class="count-num-box">
-                    <span class="num-text">{{ detailData.collect_count }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="count-item flex-view" @click="share()">
-                <div class="count-img">
-                  <img :src="ShareIcon" />
-                </div>
-                <div class="count-box flex-view">
-                  <div class="count-text-box">
-                    <span class="count-title">分享</span>
-                  </div>
-                  <div class="count-num-box">
-                    <span class="num-text"></span>
-                    <img :src="WeiboShareIcon" class="mg-l" />
-                  </div>
-                </div>
-              </div>
-            </div>
+        <!-- 左侧图片 -->
+        <div class="thing-img-container"> <!-- 修改 class -->
+          <img :src="detailData.cover" :alt="detailData.title" />
+        </div>
+        <!-- 中间核心信息 -->
+        <div class="thing-info-main"> <!-- 修改 class -->
+          <div class="thing-state">
+            <span class="state">状态:</span>
+            <span class="status-text">有效</span> <!-- 可以根据实际状态动态改变 -->
+          </div>
+          <h1 class="thing-name">{{ detailData.title }}</h1>
+          <div class="thing-meta">
+            <span><tag-outlined /> {{ detailData.classification_title }}</span>
+            <span><environment-outlined /> {{ detailData.location }}</span>
+          </div>
+          <div v-if="thingType === 'lost'" class="thing-points"> <!-- 修改：使用 v-if 和新 class -->
+            <gift-outlined /> 积分奖励：<span class="points-value">{{ detailData.points }}</span> 积分
+          </div>
+          <a-button type="primary" shape="round" size="large" @click="handleAdd()" class="claim-button">
+            <template #icon><form-outlined /></template>
+            认领此物
+          </a-button>
+        </div>
+        <!-- 右侧操作/统计 -->
+        <div class="thing-actions-stats"> <!-- 修改 class -->
+          <div class="action-item" @click="addToWish()">
+            <heart-outlined />
+            <span>加入寻找 ({{ detailData.wish_count }})</span>
+          </div>
+          <div class="action-item" @click="collect()">
+            <star-outlined />
+            <span>收藏 ({{ detailData.collect_count }})</span>
+          </div>
+          <div class="action-item" @click="share()">
+            <share-alt-outlined />
+            <span>分享</span>
           </div>
         </div>
       </div>
+
+      <!-- 底部详情/评论/推荐区域 -->
       <div class="detail-content-bottom">
-        <div class="thing-content-view flex-view">
+        <div class="main-content-wrapper"> <!-- 新增 wrapper -->
+          <!-- 左侧主内容：描述和评论 -->
           <div class="main-content">
-            <div class="order-view main-tab">
-              <span class="tab" :class="selectTabIndex === index ? 'tab-select' : ''" v-for="(item, index) in tabData"
-                :key="index" @click="selectTab(index)">
+            <div class="content-tabs"> <!-- 修改 class -->
+              <span
+                class="tab"
+                :class="{ 'tab-select': selectTabIndex === index }"
+                v-for="(item, index) in tabData"
+                :key="index"
+                @click="selectTab(index)"
+              >
                 {{ item }}
               </span>
-              <span :style="{ left: tabUnderLeft + 'px' }" class="tab-underline"></span>
+              <span class="tab-underline" :style="{ left: tabUnderLeft + 'px' }"></span>
             </div>
 
-            <!--简介-->
-            <div class="thing-intro" :class="selectTabIndex <= 0 ? '' : 'hide'">
-              <p class="text" style="">{{ detailData.description }}</p>
+            <!-- 详细描述 -->
+            <div class="thing-description" v-show="selectTabIndex === 0"> <!-- 修改 class 和 v-show -->
+              <p class="text">{{ detailData.description || '暂无详细描述...' }}</p>
             </div>
 
-            <!--评论-->
-            <div class="thing-comment" :class="selectTabIndex > 0 ? '' : 'hide'">
+            <!-- 评论区 -->
+            <div class="thing-comment" v-show="selectTabIndex === 1"> <!-- 修改 v-show -->
+              <!-- ... 评论区现有代码保持不变 ... -->
               <div class="title">发表新的评论</div>
               <div class="publish flex-view">
                 <img :src="AvatarIcon" class="mine-img" />
@@ -145,19 +123,21 @@
               </div>
             </div>
           </div>
-          <div class="recommend" style="">
-            <div class="title">热门推荐</div>
-            <div class="things">
-              <div class="thing-item thing-item" v-for="item in recommendData" @click="handleDetail(item)">
-                <div class="img-view"> <img :src="item.cover" /></div>
+
+          <!-- 右侧推荐 -->
+          <div class="recommend-section"> <!-- 修改 class -->
+            <div class="title">相关推荐</div>
+            <div class="recommend-list"> <!-- 修改 class -->
+              <div class="recommend-item" v-for="item in recommendData" :key="item.id" @click="handleDetail(item)">
+                <div class="img-view"> <img :src="item.cover" :alt="item.title"/></div>
                 <div class="info-view">
                   <h3 class="thing-name">{{ item.title.substring(0, 12) }}</h3>
-                  <span>
-                    <span class="a-price-symbol"></span>
-                    <span class="a-price">地点：{{ item.location }}</span><br>
-                    <span class="a-price">奖励：{{ item.price }}积分</span>
-                  </span>
+                  <span class="location"><environment-outlined /> {{ item.location }}</span>
+                  <span class="points" v-if="item.points"><gift-outlined /> {{ item.points }} 积分</span>
                 </div>
+              </div>
+              <div v-if="!recommendData || recommendData.length === 0" class="no-recommend">
+                暂无相关推荐
               </div>
             </div>
           </div>
@@ -191,6 +171,7 @@
     <Footer />
   </div>
 </template>
+
 <script setup lang="ts">
 import { FormInstance, message } from 'ant-design-vue';
 import { useRoute, useRouter } from 'vue-router/dist/vue-router';
@@ -207,13 +188,46 @@ import { useUserStore } from '/@/store';
 import { BASE_URL } from '/@/store/constants';
 import Footer from '/@/views/index/components/footer.vue';
 import Header from '/@/views/index/components/header.vue';
+import {
+  TagOutlined,
+  EnvironmentOutlined,
+  GiftOutlined,
+  FormOutlined,
+  HeartOutlined,
+  StarOutlined,
+  ShareAltOutlined
+} from '@ant-design/icons-vue'; // 导入所需图标
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
 let thingId = ref('');
-let detailData = ref({});
+interface DetailData {
+  cover: string;
+  title: string;
+  points: number; // *** 修改：price -> points ***
+  classification_title: string;
+  location: string;
+  description: string;
+  wish_count: number;
+  collect_count: number;
+  user: string;
+  id: string;
+}
+
+let detailData = ref<DetailData>({
+  cover: '',
+  title: '',
+  points: 0, // *** 修改：price -> points ***
+  classification_title: '',
+  location: '',
+  description: '',
+  wish_count: 0,
+  collect_count: 0,
+  user: '',
+  id: '',
+});
 let tabUnderLeft = ref(6);
 let tabData = ref(['详细描述', '评论区']);
 let selectTabIndex = ref(0);
@@ -378,7 +392,7 @@ const getThingDetail = () => {
   // *** 在调用 API 时传递 id 和 type ***
   detailApi({ id: thingId.value, type: thingType.value })
     .then((res) => {
-      detailData.value = res.data;
+      detailData.value = res.data; // *** 确保后端返回的数据包含 points 字段 ***
       // detailData.value.cover = detailData.value.cover; // 这行似乎多余，如果 cover 已经是完整 URL
     })
     .catch((err) => {
@@ -399,6 +413,10 @@ const addToWish = () => {
   } else {
     message.warn('请先登录');
   }
+};
+
+const share = () => {
+  message.info('分享功能暂未实现');
 };
 const collect = () => {
   let username = userStore.user_name;
@@ -454,13 +472,11 @@ const addSorce = () => {
 const getRecommendThing = () => {
   listThingList({ sort: 'recommend' })
     .then((res) => {
-      res.data.forEach((item, index) => {
-        if (item.cover) {
-          item.cover = item.cover;
-        }
-      });
-      console.log(res);
-      recommendData.value = res.data.slice(0, 6);
+      // *** 修改：确保推荐数据也使用 points ***
+      recommendData.value = res.data.slice(0, 6).map(item => ({
+          ...item,
+          points: item.points || item.price || 0 // 兼容后端可能返回 price 或 points
+      }));
     })
     .catch((err) => {
       console.log(err);
@@ -503,17 +519,17 @@ const like = (commentId) => {
     });
 };
 
-const deleteComment = (commentId) => {
-  deleteCommentApi({ commentId: commentId })
-    .then((res) => {
-      message.success('删除成功');
-      getCommentList();
-    })
-    .catch((err) => {
-      console.log(err);
-      message.error('删除失败');
-    });
-};
+// const deleteComment = (commentId) => {
+//   deleteCommentApi({ commentId: commentId })
+//     .then((res) => {
+//       message.success('删除成功');
+//       getCommentList();
+//     })
+//     .catch((err) => {
+//       console.log(err);
+//       message.error('删除失败');
+//     });
+// };
 
 const sortCommentList = (sortType) => {
   if (sortType === 'recent') {
@@ -524,609 +540,446 @@ const sortCommentList = (sortType) => {
   order.value = sortType;
   getCommentList();
 };
+
+const showReplyInput = (item) => {
+  // 实现显示回复框的逻辑
+  item.showReply = !item.showReply;
+  if (item.showReply) {
+    item.replyText = ''; // 清空之前的输入
+  }
+};
 </script>
+
 <style scoped lang="less">
-.hide {
-  display: none;
+// @import '/src/assets/css/variables.less'; // 假设有一个变量文件
+@primary-color: #873692; // 主题色 (与 jiajiao-edit-view 一致)
+// 定义一个备用颜色或直接替换
+@fallback-secondary-color: #6a8ee6; // 定义一个备用颜色
+@error-color: #ff4d4f;
+
+.detail {
+  background-color: #f8f9fa; // 页面背景色
 }
 
 .detail-content {
+  width: 1100px;
+  max-width: 90%; // 响应式调整
+  margin: 30px auto; // 上下边距调整
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.detail-content-top {
+  display: flex;
+  gap: 30px; // 增加元素间距
+  padding-bottom: 30px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 30px;
+}
+
+.thing-img-container {
+  flex: 0 0 300px; // 固定图片容器宽度
+  height: 300px; // 固定高度
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden; // 隐藏伪元素超出部分
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+
+  // 渐变边框
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -3px; // 边框宽度
+    background: linear-gradient(45deg, @primary-color, @fallback-secondary-color, #ff7e5f); // 使用备用颜色
+    z-index: -1;
+    border-radius: inherit;
+    transition: filter 0.3s ease;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit; // 继承容器圆角
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); // 平滑过渡
+  }
+
+  &:hover {
+    &::before {
+      filter: brightness(1.1) blur(2px); // 边框发光效果
+    }
+    img {
+      transform: scale(1.08); // 悬停放大
+    }
+  }
+}
+
+.thing-info-main {
+  flex: 1; // 占据剩余空间
   display: flex;
   flex-direction: column;
-  width: 1100px;
-  margin: 4px auto;
-}
-
-.flex-view {
-  display: -webkit-box;
-  display: -ms-flexbox;
-  display: flex;
-}
-
-.hidden-lg {
-  display: none !important;
-}
-
-.thing-infos-view {
-  display: flex;
-  margin: 89px 0 40px;
-  overflow: hidden;
-
-  .thing-infos {
-    -webkit-box-flex: 1;
-    -ms-flex: 1;
-    flex: 1;
-    display: flex;
-  }
-
-  .mobile-share-box {
-    height: 38px;
-    background: transparent;
-    padding: 0 16px;
-    margin: 12px 0;
-    font-size: 0;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-    -webkit-box-pack: justify;
-    -ms-flex-pack: justify;
-    justify-content: space-between;
-
-    .state {
-      width: 64px;
-      height: 24px;
-      line-height: 24px;
-      background: rgba(70, 132, 226, 0.1);
-      border-radius: 2px;
-      font-weight: 500;
-      font-size: 12px;
-      color: #4684e2;
-      text-align: center;
-    }
-
-    .share-img {
-      background: #fff;
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      text-align: center;
-
-      img {
-        position: relative;
-        top: 4px;
-        width: 24px;
-      }
-    }
-  }
-
-  .thing-img-box {
-    -webkit-box-flex: 0;
-    -ms-flex: 0 0 235px;
-    flex: 0 0 235px;
-    margin: 0 40px 0 0;
-
-    img {
-      width: 200px;
-      height: 186px;
-      display: block;
-      background-size: cover;
-      object-fit: cover;
-    }
-  }
-
-  .thing-info-box {
-    text-align: left;
-    padding: 0;
-    margin: 0;
-  }
 
   .thing-state {
-    height: 26px;
-    line-height: 26px;
-
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #666;
     .state {
       font-weight: 500;
-      color: #4684e2;
-      background: rgba(70, 132, 226, 0.1);
-      border-radius: 2px;
-      padding: 5px 8px;
-      margin-right: 16px;
+      margin-right: 8px;
     }
-
-    span {
-      font-size: 18px;
-      color: #152844;
+    .status-text {
+      color: #52c41a; // 绿色表示有效
+      font-weight: bold;
     }
   }
 
   .thing-name {
-    line-height: 32px;
-    margin: 16px 0;
-    color: #0f1111 !important;
-    font-weight: 400 !important;
-    font-style: normal !important;
-    text-transform: none !important;
-    text-decoration: none !important;
-  }
-
-  .translators,
-  .authors {
-    line-height: 18px;
-    font-size: 16px;
-    margin: 8px 0;
-    -webkit-box-align: start;
-    -ms-flex-align: start;
-    align-items: flex-start;
-    -webkit-box-pack: start;
-    -ms-flex-pack: start;
-    justify-content: flex-start;
-
-    .name {
-      color: #315c9e;
-      white-space: normal;
-    }
-  }
-
-  .tags {
-    position: absolute;
-    bottom: 20px;
-    margin-top: 16px;
-
-    .category-box {
-      color: #152844;
-      font-size: 14px;
-
-      .title {
-        color: #787878;
-      }
-    }
-  }
-
-  .thing-counts {
-    -webkit-box-flex: 0;
-    -ms-flex: 0 0 235px;
-    flex: 0 0 235px;
-    margin-left: 20px;
-  }
-
-  .pointer {
-    cursor: pointer;
-  }
-
-  .count-item {
-    height: 64px;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-    cursor: pointer;
-  }
-
-  .count-img {
-    -webkit-box-flex: 0;
-    -ms-flex: 0 0 32px;
-    flex: 0 0 32px;
-    margin-right: 24px;
-    font-size: 0;
-
-    img {
-      width: 100%;
-      display: block;
-    }
-  }
-
-  .count-box {
-    position: relative;
-    border-bottom: 1px solid #cedce4;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-    -webkit-box-pack: justify;
-    -ms-flex-pack: justify;
-    justify-content: space-between;
-    -webkit-box-flex: 1;
-    -ms-flex: 1;
-    flex: 1;
-    height: 100%;
-  }
-
-  .count-text-box {
-    font-size: 0;
-
-    .count-title {
-      color: #152844;
-      font-weight: 600;
-      font-size: 16px;
-      line-height: 18px;
-      display: block;
-      height: 18px;
-    }
-  }
-
-  .count-num-box {
+    font-size: 26px; // 增大标题字号
     font-weight: 600;
-    font-size: 20px;
-    line-height: 24px;
-    color: #152844;
+    color: #333;
+    margin-bottom: 15px;
+    line-height: 1.3;
   }
-}
 
-.buy-btn {
-  cursor: pointer;
-  display: block;
-  background: #4684e2;
-  border-radius: 4px;
-  text-align: center;
-  color: #fff;
-  font-size: 14px;
-  height: 36px;
-  line-height: 36px;
-  width: 110px;
-  outline: none;
-  border: none;
-  margin-top: 18px;
-}
+  .thing-meta {
+    display: flex;
+    gap: 15px;
+    color: #555;
+    margin-bottom: 15px;
+    font-size: 15px;
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+  }
 
-.buy-btn img {
-  width: 12px;
-  margin-right: 2px;
-  vertical-align: middle;
-}
-
-.buy-btn span {
-  vertical-align: middle;
-}
-
-.buy-way {
-  overflow: hidden;
-
-  .title {
-    font-weight: 600;
+  .thing-points {
     font-size: 18px;
-    height: 26px;
-    line-height: 26px;
-    color: #152844;
-    margin-bottom: 12px;
+    color: @error-color; // 红色突出显示
+    margin-bottom: 25px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    .points-value {
+      font-weight: bold;
+      font-size: 20px;
+    }
+  }
+
+  .claim-button {
+    margin-top: auto; // 将按钮推到底部
+    align-self: flex-start; // 左对齐
+    background: linear-gradient(135deg, @primary-color, @fallback-secondary-color); // 使用备用颜色
+    border: none;
+    &:hover {
+      opacity: 0.9;
+      box-shadow: 0 4px 10px fade(@primary-color, 30%);
+    }
   }
 }
 
-.thing-content-view {
-  margin-top: 40px;
-  padding-bottom: 50px;
+.thing-actions-stats {
+  flex: 0 0 180px; // 固定右侧宽度
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding-left: 20px;
+  border-left: 1px solid #eee;
+
+  .action-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #555;
+    font-size: 14px;
+    transition: color 0.3s, transform 0.2s;
+
+    .anticon {
+      font-size: 18px;
+    }
+
+    &:hover {
+      color: @primary-color;
+      transform: translateX(3px);
+    }
+  }
+}
+
+.detail-content-bottom {
+  margin-top: 20px; // 与顶部区域分隔
+}
+
+.main-content-wrapper {
+  display: flex;
+  gap: 30px;
 }
 
 .main-content {
-  -webkit-box-flex: 1;
-  -ms-flex: 1;
-  flex: 1;
-
-  .text {
-    color: #484848;
-    font-size: 17px;
-    line-height: 26px;
-    padding-left: 12px;
-    margin: 11px 0;
-    white-space: pre-wrap;
-  }
+  flex: 1; // 主内容区域占据更多空间
+  min-width: 0; // 防止 flex item 溢出
 }
 
-.main-tab {
-  border-bottom: 1px solid #cedce4;
-}
-
-.order-view {
+.content-tabs { // 替换 .order-view
   position: relative;
-  color: #6c6c6c;
-  font-size: 14px;
-  line-height: 40px;
-
-  .title {
-    margin-right: 8px;
-  }
+  display: flex;
+  gap: 25px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 25px;
 
   .tab {
-    margin-right: 20px;
+    padding: 10px 5px;
+    font-size: 17px; // 调整字号
+    color: #666;
     cursor: pointer;
-    color: #5f77a6;
-    font-size: 21px;
-    cursor: pointer;
+    position: relative;
+    transition: color 0.3s;
+
+    &:hover {
+      color: @primary-color;
+    }
   }
 
   .tab-select {
-    color: #152844;
+    color: @primary-color;
     font-weight: 600;
   }
 
   .tab-underline {
     position: absolute;
-    bottom: 0;
-    left: 84px;
-    width: 16px;
-    height: 4px;
-    background: #4684e2;
-    -webkit-transition: left 0.3s;
-    transition: left 0.3s;
+    bottom: -1px; // 贴在边框上
+    height: 3px;
+    width: 30px; // 下划线宽度
+    background-color: @primary-color;
+    border-radius: 1.5px;
+    transition: left 0.3s cubic-bezier(0.65, 0, 0.35, 1);
   }
 }
 
-.recommend {
-  -webkit-box-flex: 0;
-  -ms-flex: 0 0 235px;
-  flex: 0 0 235px;
-  margin-left: 20px;
-
-  .title {
-    font-weight: 600;
-    font-size: 18px;
-    line-height: 26px;
-    color: #152844;
-    margin-bottom: 12px;
+.thing-description { // 替换 .thing-intro
+  .text {
+    font-size: 15px;
+    line-height: 1.8;
+    color: #444;
+    white-space: pre-wrap; // 保留换行和空格
+    padding: 10px;
+    background-color: #fdfdff; // 非常浅的背景色
+    border-radius: 6px;
+    border: 1px solid #f0f0f0;
   }
-
-  .things {
-    border-top: 1px solid #cedce4;
-
-    .thing-item {
-      min-width: 255px;
-      max-width: 255px;
-      position: relative;
-      flex: 1;
-      margin-right: 20px;
-      height: fit-content;
-      overflow: hidden;
-      margin-top: 26px;
-      margin-bottom: 36px;
-      padding-bottom: 24px;
-      border-bottom: 1px #e1e1e1 solid;
-      cursor: pointer;
-
-      .img-view {
-        //background: #f3f3f3;
-        //text-align: center;
-        height: 200px;
-        width: 255px;
-        //border: 1px #f3f3f3 solid;
-
-        img {
-          height: 200px;
-          width: 240px;
-          overflow: hidden;
-          margin: 0 auto;
-          background-size: cover;
-          object-fit: cover;
-        }
-      }
-
-      .info-view {
-        //background: #f6f9fb;
-        overflow: hidden;
-        padding: 0 16px;
-
-        .thing-name {
-          line-height: 32px;
-          margin-top: 12px;
-          color: #0f1111 !important;
-          font-weight: 400 !important;
-          font-style: normal !important;
-          text-transform: none !important;
-          text-decoration: none !important;
-        }
-
-        .price {
-          color: #ff7b31;
-          font-size: 20px;
-          line-height: 20px;
-          margin-top: 4px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .translators {
-          color: #6f6f6f;
-          font-size: 16px;
-          line-height: 14px;
-          margin-top: 4px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-    }
-  }
-}
-
-.flex-view {
-  display: flex;
 }
 
 .thing-comment {
+  // 评论区样式微调
   .title {
+    font-size: 18px;
     font-weight: 600;
-    font-size: 14px;
-    line-height: 22px;
-    height: 22px;
-    color: #152844;
-    margin: 24px 0 12px;
+    color: #333;
+    margin-bottom: 15px;
   }
-
   .publish {
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-
-    .mine-img {
-      -webkit-box-flex: 0;
-      -ms-flex: 0 0 40px;
-      flex: 0 0 40px;
-      margin-right: 12px;
-      border-radius: 50%;
-      width: 40px;
+    margin-bottom: 25px;
+    .content-input {
+      border-radius: 6px;
       height: 40px;
     }
-
-    .content-input {
-      -webkit-box-flex: 1;
-      -ms-flex: 1;
-      flex: 1;
-      background: #f6f9fb;
-      border-radius: 4px;
-      height: 32px;
-      line-height: 32px;
-      color: #484848;
-      padding: 5px 12px;
-      white-space: nowrap;
-      outline: none;
-      border: 0px;
-    }
-
     .send-btn {
-      margin-left: 10px;
-      background: #4684e2;
-      border-radius: 4px;
-      -webkit-box-flex: 0;
-      -ms-flex: 0 0 80px;
-      flex: 0 0 80px;
-      color: #fff;
-      font-size: 14px;
-      text-align: center;
-      height: 32px;
-      line-height: 32px;
-      outline: none;
-      border: 0px;
-      cursor: pointer;
+      border-radius: 6px;
+      height: 40px;
     }
   }
-
   .tab-view {
-    -webkit-box-pack: justify;
-    -ms-flex-pack: justify;
-    justify-content: space-between;
-    font-size: 14px;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-    margin: 24px 0;
-
-    .count-text {
-      color: #484848;
-      float: left;
-    }
-
-    .tab-box {
-      color: #5f77a6;
-      -webkit-box-align: center;
-      -ms-flex-align: center;
-      align-items: center;
-
-      .tab-select {
-        color: #152844;
-      }
-
-      span {
-        cursor: pointer;
-      }
-    }
-
-    .line {
-      width: 1px;
-      height: 12px;
-      margin: 0 12px;
-      background: #cedce4;
-    }
+    margin-bottom: 20px;
   }
-}
-
-.comments-list {
-  .comment-item {
-    .flex-item {
-      -webkit-box-align: center;
-      -ms-flex-align: center;
-      align-items: center;
-      padding-top: 16px;
-
-      .avator {
-        -webkit-box-flex: 0;
-        -ms-flex: 0 0 40px;
-        flex: 0 0 40px;
-        width: 40px;
-        height: 40px;
-        margin-right: 12px;
-        border-radius: 50%;
-        cursor: pointer;
+  .comments-list {
+    .comment-item {
+      border-bottom: 1px dashed #eee; // 分隔线改细
+      padding-bottom: 15px;
+      margin-bottom: 15px;
+      &:last-child {
+        border-bottom: none;
       }
-
-      .person {
-        -webkit-box-flex: 1;
-        -ms-flex: 1;
+    }
+    .comment-content {
+      border-bottom: none; // 移除内部多余的边框
+      padding-bottom: 0;
+      margin-top: 5px;
+      font-size: 14px;
+      color: #555;
+    }
+    .reply-input { // 回复输入框样式
+      margin-top: 8px;
+      margin-left: 52px;
+      display: flex;
+      gap: 8px;
+      input {
         flex: 1;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
       }
-
-      .name {
-        color: #152844;
-        font-weight: 600;
-        font-size: 14px;
-        line-height: 22px;
-        height: 22px;
+      button {
+        height: 32px;
+        padding: 0 12px;
+        background-color: @primary-color;
+        color: white;
+        border: none;
+        border-radius: 4px;
         cursor: pointer;
-      }
-
-      .time {
-        color: #5f77a6;
-        font-size: 12px;
-        line-height: 16px;
-        height: 16px;
-        margin-top: 2px;
-      }
-
-      .float-right {
-        color: #4684e2;
-        font-size: 14px;
-        float: right;
-
-        span {
-          margin-left: 19px;
-          cursor: pointer;
+        font-size: 13px;
+        &:hover {
+          opacity: 0.9;
         }
-
-        .num {
-          color: #152844;
-          margin-left: 6px;
-          cursor: auto;
-        }
+      }
+    }
+    .replies { // 子评论样式
+      margin-top: 8px;
+      margin-left: 62px; // 增加缩进
+      padding-left: 10px;
+      border-left: 2px solid #eee;
+      p {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 4px;
       }
     }
   }
 }
 
-.comment-content {
-  margin-top: 8px;
-  color: #484848;
-  font-size: 14px;
-  line-height: 22px;
-  padding-bottom: 16px;
-  border-bottom: 1px dashed #cedce4;
-  margin-left: 52px;
-  overflow: hidden;
-  word-break: break-word;
+.recommend-section { // 替换 .recommend
+  flex: 0 0 250px; // 固定推荐区域宽度
+  padding-left: 25px;
+  border-left: 1px solid #eee;
+
+  .title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 15px;
+  }
+
+  .recommend-list { // 替换 .things
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .recommend-item {
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+    padding-bottom: 15px;
+    border-bottom: 1px dashed #eee;
+    transition: background-color 0.2s;
+    border-radius: 4px;
+    padding: 8px;
+
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 8px;
+    }
+    &:hover {
+       background-color: #f8f8f8;
+    }
+
+    .img-view {
+      flex: 0 0 80px;
+      height: 60px;
+      border-radius: 4px;
+      overflow: hidden;
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .info-view {
+      flex: 1;
+      min-width: 0;
+      .thing-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: #444;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .location, .points {
+        font-size: 12px;
+        color: #777;
+        display: block; // 换行显示
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .anticon {
+          margin-right: 4px;
+        }
+      }
+      .points {
+        color: @error-color;
+      }
+    }
+  }
+  .no-recommend {
+    color: #999;
+    font-size: 14px;
+    text-align: center;
+    padding: 20px 0;
+  }
 }
 
-.infinite-loading-container {
-  clear: both;
-  text-align: center;
+// 响应式调整
+@media (max-width: 992px) {
+  .detail-content-top {
+    flex-direction: column;
+    align-items: center; // 居中对齐
+    gap: 20px;
+  }
+  .thing-img-container {
+    flex-basis: auto; // 移除固定宽度
+    width: 80%; // 调整宽度
+    max-width: 400px;
+    height: auto; // 高度自适应
+    aspect-ratio: 1 / 1; // 保持方形
+  }
+  .thing-info-main {
+    align-items: center; // 居中对齐
+    text-align: center;
+    .claim-button {
+      align-self: center; // 按钮居中
+    }
+  }
+  .thing-actions-stats {
+    flex-direction: row; // 水平排列
+    flex-basis: auto;
+    width: 100%;
+    justify-content: space-around; // 均匀分布
+    border-left: none;
+    padding-left: 0;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+  }
+  .main-content-wrapper {
+    flex-direction: column;
+  }
+  .recommend-section {
+    flex-basis: auto;
+    border-left: none;
+    padding-left: 0;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+  }
 }
 
-.a-price-symbol {
-  top: -0.5em;
-  font-size: 12px;
-}
 
-.a-price {
-  color: #0f1111;
-  font-size: 12px;
-}
-.delete-icon{
-  width: 22px;
-  height: 15px;
-  margin-bottom: 4px;
-}
 </style>
