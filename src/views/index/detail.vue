@@ -70,7 +70,7 @@
               <div class="description-publisher">
                 <a-avatar :src="detailData.user?.avatar || AvatarIcon" :size="40" />
                 <div class="publisher-name-time">
-                  <span class="name">{{ detailData.user?.nickname || detailData.user?.username || '匿名用户' }}</span>
+                  <span class="name">{{detailData.user?.username || '匿名用户' }}</span>
                   <!-- 可以考虑添加发布时间 -->
                   <!-- <span class="time">{{ detailData.publish_time }}</span> -->
                 </div>
@@ -111,7 +111,7 @@
                     <a-avatar :src="item.user?.avatar || AvatarIcon" class="avator" />
                     <div class="person">
                       <div class="name">
-                        {{ item.user?.nickname || '匿名用户' }}
+                        {{ item.user?.username || '匿名用户' }}
                         <!-- 新增：发布者标识 -->
                         <a-tag v-if="item.user?.id === detailData.user?.id" color="volcano" class="publisher-tag">发布者</a-tag>
                       </div>
@@ -161,7 +161,7 @@
                         <a-avatar :src="reply.user?.avatar || AvatarIcon" class="avator reply-avatar-small" />
                         <div class="person">
                           <div class="name">
-                            {{ reply.user?.nickname || '匿名用户' }}
+                            {{ reply.user?.username || '匿名用户' }}
                             <!-- 新增：发布者标识 -->
                             <a-tag v-if="reply.user?.id === detailData.user?.id" color="volcano" class="publisher-tag">发布者</a-tag>
                             <!-- 显示回复目标 -->
@@ -487,11 +487,14 @@ const getThingDetail = () => {
   // *** 在调用 API 时传递 id 和 type ***
   detailApi({ id: thingId.value, type: thingType.value })
     .then((res) => {
-      detailData.value = res.data; // *** 确保后端返回的数据包含 points 字段 ***
-      // detailData.value.cover = detailData.value.cover; // 这行似乎多余，如果 cover 已经是完整 URL
+      detailData.value = res.data; // 假设数据在 res.data
+      // --- 新增日志：打印物品发布者 ID ---
+      console.log(`[Debug] Item Publisher ID (detailData.user?.id): ${detailData.value.user?.id}`);
+      // ... 其他处理 ...
     })
     .catch((err) => {
       message.error('获取详情失败');
+      console.error('获取物品详情失败:', err);
     });
 };
 const addToWish = () => {
@@ -612,17 +615,24 @@ const getCommentList = () => {
       commentList.forEach((comment: Comment) => {
         comment.showReply = false;
         comment.replyText = '';
-        console.log(`Processing comment ID: ${comment.id}, Replies:`, comment.replies); // 添加日志检查原始 replies
-        if (comment.replies && Array.isArray(comment.replies)) { // 确保 replies 是数组
+        console.log(`Processing comment ID: ${comment.id}, Replies:`, comment.replies);
+        if (comment.replies && Array.isArray(comment.replies)) {
           comment.replies.forEach((reply: Comment) => {
             reply.showReply = false;
             reply.replyText = '';
-            console.log(`  - Processing reply ID: ${reply.id} for parent ${comment.id}`); // 添加日志
+            console.log(`  - Processing reply ID: ${reply.id} for parent ${comment.id}`);
+
+            // --- 新增日志：打印发布者标签判断所需信息 ---
+            const replierId = reply.user?.id;
+            const publisherId = detailData.value.user?.id; // 获取当前物品发布者 ID
+            const isPublisher = replierId === publisherId;
+            console.log(`    [Debug Publisher Tag] Reply ID: ${reply.id}, Replier ID: ${replierId}, Item Publisher ID: ${publisherId}, Is Publisher: ${isPublisher}`);
+            // --- 日志结束 ---
+
           });
         } else {
-           // 如果 replies 不存在或是空数组，也打印日志
            console.log(`  - Comment ID: ${comment.id} has no replies or replies is not an array.`);
-           comment.replies = []; // 确保 replies 至少是个空数组，防止模板出错
+           comment.replies = [];
         }
       });
 
