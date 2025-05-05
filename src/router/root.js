@@ -147,8 +147,16 @@ const constantRouterMap = [
             name: 'messageView',
             component: () => import('/@/views/index/user/message-view.vue'),
           },
-          
         ],
+      },
+      {
+        path: 'chat/:recipientId',
+        name: 'chat',
+        component: () => import('/@/views/index/user/chat.vue'),
+        meta: {
+          title: '聊天',
+          requireAuth: true,
+        },
       },
     ],
   },

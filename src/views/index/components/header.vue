@@ -50,13 +50,14 @@
                 <a @click="goUserCenter('userInfoEditView')">个人中心</a>
               </a-menu-item>
               <a-menu-item>
-                <a @click="quit()">退出</a>
+                <a @click="quit()">登出</a>
               </a-menu-item>
             </a-menu>
           </template>
         </a-dropdown>
       </template>
       <template v-else>
+        <!-- 这个是登录按钮，点击会跳转到登录页 -->
         <button class="login btn hidden-sm" @click="goLogin()">登录</button>
       </template>
 
@@ -245,8 +246,12 @@ const goUserCenter = (menuName) => {
   router.push({ name: menuName });
 };
 const quit = () => {
+  console.log('quit() function called in header.vue'); // <-- 添加日志
   userStore.logout().then((res) => {
+    console.log('userStore.logout() finished, navigating to portal.'); // <-- 添加日志
     router.push({ name: 'portal' });
+  }).catch(err => { // <-- 添加 catch 以防万一
+    console.error('Error during logout process:', err);
   });
 };
 const onClose = () => {

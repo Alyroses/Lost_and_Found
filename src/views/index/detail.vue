@@ -24,9 +24,9 @@
           <div v-if="thingType === 'lost'" class="thing-points"> <!-- 修改：使用 v-if 和新 class -->
             <gift-outlined /> 积分奖励：<span class="points-value">{{ detailData.points }}</span> 积分
           </div>
-          <a-button type="primary" shape="round" size="large" @click="handleAdd()" class="claim-button">
-            <template #icon><form-outlined /></template>
-            认领此物
+          <a-button type="primary" shape="round" size="large" @click="navigateToChat" class="claim-button">
+            <template #icon><MessageOutlined /></template>
+            {{ thingType === 'found' ? '联系拾物者' : '联系失主' }}
           </a-button>
         </div>
         <!-- 右侧操作/统计 -->
@@ -85,7 +85,7 @@
               <!-- 评论发布区域 -->
               <div class="publish flex-view">
                 <!-- 使用登录用户的头像，如果未登录则显示默认 -->
-                <a-avatar :src="userStore.avatar || AvatarIcon" class="mine-img" />
+                <a-avatar :src="userStore.user_avatar || AvatarIcon" class="mine-img" />
                 <a-textarea
                   placeholder="说点什么..."
                   class="content-input"
@@ -246,29 +246,6 @@
       </div>
     </div>
 
-    <!--弹窗区域-->
-    <div>
-      <a-modal :visible="modal.visile" :forceRender="true" :title="modal.title" ok-text="确认" cancel-text="取消"
-        @cancel="handleCancel" @ok="handleOk(detailData)">
-        <div>
-          <a-form ref="myform" :label-col="{ style: { width: '80px' } }" :model="modal.form" :rules="modal.rules">
-            <a-row :gutter="24">
-              <a-col span="24">
-                <a-form-item label="标题" name="title">
-                  <a-input placeholder="请输入标题" v-model:value="modal.form.title" />
-                </a-form-item>
-              </a-col>
-              <a-col span="24">
-                <a-form-item label="通知内容" name="content">
-                  <a-textarea placeholder="请输入内容" :rows="4" v-model:value="modal.form.content" />
-                </a-form-item>
-              </a-col>
-            </a-row>
-          </a-form>
-        </div>
-      </a-modal>
-    </div>
-
     <Footer />
   </div>
 </template>
@@ -276,7 +253,6 @@
 <script setup lang="ts">
 import { FormInstance, message } from 'ant-design-vue';
 import { useRoute, useRouter } from 'vue-router/dist/vue-router';
-import { createApi, updateApi } from '/@/api/admin/notice';
 import { createApi as createCommentApi, likeApi, listThingCommentsApi, deleteCommentsApi } from '/@/api/index/comment';
 import { createApi as orderCreat } from '/@/api/index/order';
 import { addCollectUserApi, addScoreApi, addWishUserApi, detailApi, listApi as listThingList } from '/@/api/index/thing';
@@ -373,93 +349,6 @@ let order = ref('recent'); // 默认排序最新
 let commentRef = ref();
 
 const myform = ref<FormInstance>();
-
-// 弹窗数据源
-const modal = reactive({
-  visile: false,
-  editFlag: false,
-  title: '',
-  form: {
-    id: undefined,
-    title: undefined,
-    content: undefined,
-    user: undefined,
-    thing:undefined,
-  },
-  rules: {
-    title: [{ required: true, message: '请输入', trigger: 'change' }],
-  },
-});
-
-const handleAdd = () => {
-  resetModal();
-  modal.visile = true;
-  modal.editFlag = false;
-  modal.title = '发送消息';
-  // 重置
-  for (const key in modal.form) {
-    modal.form[key] = undefined;
-  }
-};
-const handleOk = (detailData) => {
-  myform.value
-    ?.validate()
-    .then(() => {
-      if (modal.editFlag) {
-        updateApi(
-          {
-            id: modal.form.id,
-          },
-          modal.form,
-        )
-          .then((res) => {
-            hideModal();
-            
-          })
-          .catch((err) => {
-            console.log(err);
-            message.error(err.msg || '操作失败');
-          });
-      } else {
-        console.log(detailData);
-        let Touserid = detailData.user;
-        let thingid = detailData.id;
-        console.log(Touserid)
-        modal.form.user = Touserid;
-        modal.form.thing = thingid;
-        console.log(modal.form)
-        createApi(modal.form)
-          .then((res) => {
-            hideModal();
-            message.success('认领成功！');
-           
-            handleOrder(detailData);
-
-          })
-          .catch((err) => {
-            console.log(err);
-            message.error(err.msg || '操作失败');
-          });
-      }
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-};
-
-const handleCancel = () => {
-  hideModal();
-};
-
-// 恢复表单初始状态
-const resetModal = () => {
-  myform.value?.resetFields();
-};
-
-// 关闭弹窗
-const hideModal = () => {
-  modal.visile = false;
-};
 
 let thingType = ref(''); // 新增：用于存储物品类型
 
@@ -786,6 +675,57 @@ const sortCommentList = (sortType: 'recent' | 'hot') => { // 注意：这里也�
   getCommentList(); // 重新获取列表
 };
 
+// --- 修改：导航到聊天页面的函数 ---
+const navigateToChat = () => {
+  console.log('navigateToChat function called.'); // <-- 日志 1: 函数开始
+
+  // 检查是否已登录
+  if (!userStore.user_id) {
+    console.log('User not logged in.'); // <-- 日志 2: 未登录
+    message.warn('请先登录再联系对方');
+    router.push({ name: 'login' }); // 跳转到登录页
+    return;
+  }
+  console.log('User is logged in. User ID:', userStore.user_id); // <-- 日志 3: 已登录
+
+  const recipientUserId = detailData.value.user?.id;
+  console.log('Recipient User ID:', recipientUserId); // <-- 日志 4: 获取到对方 ID
+
+  // 检查是否是联系自己
+  if (recipientUserId === userStore.user_id) {
+    console.log('Attempting to chat with self.'); // <-- 日志 5: 联系自己
+    message.info('这是您自己发布的物品');
+    return;
+  }
+
+  if (!recipientUserId) {
+    console.log('Recipient User ID is invalid or missing.'); // <-- 日志 6: 对方 ID 无效
+    message.error('无法获取对方用户信息，无法发起聊天');
+    return;
+  }
+
+  const routeParams = {
+    name: 'chat', // 确认路由名称是否为 'chat'
+    params: {
+      recipientId: recipientUserId
+    },
+    query: {
+      thingId: thingId.value,
+      thingType: thingType.value
+    }
+  };
+  console.log('Preparing to navigate with params:', routeParams); // <-- 日志 7: 准备跳转
+
+  try {
+    // 跳转到聊天页面
+    router.push(routeParams);
+    console.log('router.push called successfully.'); // <-- 日志 8: 跳转函数已调用
+  } catch (error) {
+    console.error('Error during router.push:', error); // <-- 日志 9: 跳转时发生错误
+    message.error('页面跳转失败，请稍后重试');
+  }
+};
+
 </script>
 
 <style scoped lang="less">
@@ -919,12 +859,17 @@ const sortCommentList = (sortType: 'recent' | 'hot') => { // 注意：这里也�
 
   .claim-button {
     margin-top: auto; // 将按钮推到底部
+    width: 100%; /* 按钮宽度占满 */
+    max-width: 140px; /* 最大宽度 */
     align-self: flex-start; // 左对齐
     background: linear-gradient(135deg, @primary-color, @fallback-secondary-color); // 使用备用颜色
     border: none;
+    transition: all 0.3s ease;
+
     &:hover {
       opacity: 0.9;
-      box-shadow: 0 4px 10px fade(@primary-color, 30%);
+      box-shadow: 0 4px 12px rgba(106, 142, 230, 0.4);
+      transform: translateY(-2px);
     }
   }
 }
@@ -1100,6 +1045,7 @@ const sortCommentList = (sortType: 'recent' | 'hot') => { // 注意：这里也�
       cursor: pointer;
       transition: opacity 0.3s;
       align-self: flex-end; // 按钮底部对齐
+      width: 71px;
 
       &:hover {
         opacity: 0.85;
