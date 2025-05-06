@@ -54,6 +54,7 @@ import PwdIcon from '/@/assets/images/pwd-icon.svg';
 import QQIcon from '/@/assets/images/qq-icon.svg'; // 引入QQ图标
 import { useUserStore } from '/@/store';
 import { qqLoginApi } from '/@/api/index/user'; // 确保导入 qqLoginApi
+import { useRouter } from 'vue-router'; // 确保导入 useRouter
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -76,13 +77,15 @@ const handleLogin = () => {
       captcha: pageData.loginForm.captcha,
     })
     .then((res) => {
+      // 登录成功后，调用 loginSuccess 进行跳转
       loginSuccess();
       console.log('success==>', userStore.user_name);
       console.log('success==>', userStore.user_id);
       console.log('success==>', userStore.user_token);
     })
     .catch((err) => {
-      message.warn(err.msg || '登录失败');
+      // 错误消息已在 store action 中处理
+      // message.warn(err.msg || '登录失败'); // 可以移除这里的错误提示，避免重复
     });
 };
 
@@ -119,7 +122,9 @@ const get_query_string = (name: string) => {
 
 const loginSuccess = () => {
   router.push({ name: 'portal' });
-  message.success('登录成功！');
+  // --- 移除这里的成功提示，因为它已在 store action 中调用 ---
+  // message.success('登录成功！');
+  // --- 移除结束 ---
 };
 </script>
 <style scoped lang="less">

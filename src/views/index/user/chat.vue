@@ -66,9 +66,10 @@
               :rows="4"
               @pressEnter.prevent="sendMessage"
               class="message-input"
+              :disabled="isSending"  
             /> <!-- 将注释移到标签外部 -->
             <!-- 增加行数 -->
-            <a-button type="primary" @click="sendMessage" :loading="isSending" class="send-button">
+            <a-button type="primary" @click="sendMessage" :loading="isSending" :disabled="isSending || !newMessage.trim()" class="send-button">
               发送
             </a-button>
           </div>
@@ -115,13 +116,15 @@ import { message as antMessage } from 'ant-design-vue';
 import Header from '/@/views/index/components/header.vue';
 import Footer from '/@/views/index/components/footer.vue';
 import AvatarIcon from '/@/assets/images/avatar.jpg'; // 默认头像
-// import { getChatHistoryApi } from '/@/api/index/chat'; // 引入API
+import { getHistoryApi } from '/@/api/index/chat'; // 引入API
 import { detailApi as getUserProfileByIdApi } from '/@/api/index/user'; // 使用别名导入，更清晰
 // --- 导入物品详情 API ---
 import { detailApi as getThingDetailApi } from '/@/api/index/thing';
 import { BASE_URL } from '/@/store/constants'; // 确保导入 BASE_URL
 // --- 导入图标 ---
 import { LinkOutlined } from '@ant-design/icons-vue';
+import defaultAvatar from '/@/assets/images/avatar.jpg'; // 引入默认头像
+import { formatTimestamp } from '/@/utils/format'; // 假设有时间格式化工具
 
 const route = useRoute();
 const router = useRouter();
@@ -146,18 +149,16 @@ const isFetchingRecipient = ref(false); // 新增：对方信息加载状态
 
 // --- WebSocket 相关 ---
 const connectWebSocket = () => {
-  // --- 修改：检查新增参数 ---
   if (!userStore.user_token || !recipientId.value || !thingId.value || !thingType.value) {
     antMessage.error('无法建立连接：缺少用户信息、接收者或物品信息');
     return;
   }
-  // --- 修改结束 ---
 
   // --- 修改 WebSocket URL ---
-  // 使用后端的基础地址，将 http 替换为 ws，并添加后端定义的 WebSocket 路径 (假设是 /ws/chat)
-  const wsBaseUrl = BASE_URL.replace(/^http/, 'ws'); // 将 http://127.0.0.1:8000 变为 ws://127.0.0.1:8000
+  // 直接使用指定的 WebSocket 服务器地址和端口
+  const wsBaseUrl = 'ws://127.0.0.1:8001'; // *** 直接指定 WebSocket 基础 URL ***
   const wsPath = '/ws/chat'; // *** 请与后端确认此路径 ***
-  // --- 修改：在 WebSocket URL 中添加 thingId 和 thingType ---
+  // 拼接完整的 WebSocket URL，包含 token 和其他参数
   const wsUrl = `${wsBaseUrl}${wsPath}?token=${userStore.user_token}&recipientId=${recipientId.value}&thingId=${thingId.value}&thingType=${thingType.value}`;
   // --- 修改结束 ---
 
@@ -168,7 +169,7 @@ const connectWebSocket = () => {
   ws.value.onopen = () => {
     console.log('WebSocket 连接已建立');
     // 连接建立后可以获取历史消息
-    fetchHistory();
+    fetchHistoryMessages();
   };
 
   ws.value.onmessage = (event) => {
@@ -200,6 +201,13 @@ const connectWebSocket = () => {
 };
 
 const sendMessage = () => {
+  // --- 新增：检查是否正在发送 ---
+  if (isSending.value) {
+    console.log('Already sending, please wait...');
+    return;
+  }
+  // --- 新增结束 ---
+
   if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
     antMessage.error('连接未建立，无法发送消息');
     return;
@@ -218,8 +226,12 @@ const sendMessage = () => {
     // --- 新增：发送消息时也带上物品信息 ---
     thing_id: thingId.value,
     thing_type: thingType.value,
+    
     // --- 新增结束 ---
   };
+
+  // --- 新增：添加日志，检查函数调用次数 ---
+  console.log('Calling sendMessage function. isSending:', isSending.value, 'Message:', messageToSend.content);
 
   try {
     ws.value.send(JSON.stringify(messageToSend));
@@ -234,38 +246,58 @@ const sendMessage = () => {
     console.error('发送消息失败:', error);
     antMessage.error('发送消息失败');
   } finally {
-    isSending.value = false;
+     // --- 新增：无论成功或失败，最后都重置发送状态 ---
+     // 可以加个小延迟给用户反馈时间
+     setTimeout(() => {
+        isSending.value = false;
+        console.log('Reset isSending to false');
+     }, 300); // 延迟 300 毫秒
+     // --- 新增结束 ---
   }
 };
 
 // --- 获取历史消息 ---
-const fetchHistory = async () => {
-  // --- 修改：检查新增参数 ---
-  if (!recipientId.value || !thingId.value || !thingType.value) return;
-  // --- 修改结束 ---
-  isLoadingHistory.value = true;
+const fetchHistoryMessages = async () => {
+  if (!recipientId.value) {
+    console.error('Cannot fetch history: recipientId is missing.');
+    return;
+  }
   try {
-    // --- 修改：API 调用时传递物品信息 ---
-    const res = await getChatHistoryApi({
-        recipientId: recipientId.value,
-        thingId: thingId.value,
-        thingType: thingType.value,
-        // page: 1, pageSize: 50 // 分页参数
-    });
-    // --- 修改结束 ---
-    // 假设 res.data 是按时间倒序排列的消息数组
-    // 需要处理头像信息
-    const historyMessages = res.data.map(msg => ({
-        ...msg,
-        sender_avatar: msg.sender_id === recipientId.value ? recipientInfo.avatar : userStore.user_avatar
-    })).reverse(); // 反转数组，使旧消息在前
-    messages.value = historyMessages;
-    scrollToBottom(true); // 初始加载滚动到底部
+    console.log('Calling getChatHistoryApi...');
+    const params: any = { recipientId: recipientId.value };
+    if (thingId.value) params.thingId = thingId.value;
+    if (thingType.value) params.thingType = thingType.value;
+    // 如果需要分页，可以添加 page 和 pageSize
+    // params.page = 1;
+    // params.pageSize = 50; // 例如一次加载 50 条
+
+    const res = await getHistoryApi(params); // <-- 调用 API
+    console.log('Chat history response:', res); // 打印响应以供调试
+
+    if (res.code === 0 && Array.isArray(res.data)) {
+      // 假设后端返回的消息数组是按时间升序排列的
+      const historyMessages = res.data.map(msg => ({
+        id: msg.id, // 假设后端返回消息 ID
+        sender: msg.sender, // 假设后端返回完整的 sender 对象 { id, username, avatar }
+        recipient: msg.recipient, // 假设后端返回完整的 recipient 对象
+        content: msg.content,
+        timestamp: msg.create_time || new Date().toISOString(), // 使用后端时间戳
+        isOwn: msg.sender.id === userStore.user_id, // 判断是否是自己发送的
+      }));
+      // 将历史消息添加到当前消息列表的开头
+      messages.value = [...historyMessages, ...messages.value];
+
+      // 加载历史后滚动到底部 (或者滚动到历史消息和新消息的分界处)
+      await nextTick();
+      scrollToBottom();
+
+    } else {
+      console.error('Failed to fetch chat history:', res.msg);
+      antMessage.error('加载历史消息失败: ' + (res.msg || '未知错误'));
+    }
   } catch (error) {
-    console.error('获取历史消息失败:', error);
-    antMessage.error('获取历史消息失败');
-  } finally {
-    isLoadingHistory.value = false;
+    console.error('Error fetching chat history:', error); // <-- 打印捕获到的错误
+    antMessage.error('加载历史消息时发生网络或服务器错误');
   }
 };
 
@@ -279,7 +311,6 @@ const fetchRecipientInfo = async () => {
         if (res.data) {
             recipientInfo.id = res.data.id; // 保存 ID
             recipientInfo.username = res.data.username;
-            recipientInfo.nickname = res.data.nickname;
             recipientInfo.avatar = res.data.avatar ;
             // --- 保存 login_status ---
             recipientInfo.login_status = res.data.login_status === 1 || res.data.login_status === true;
