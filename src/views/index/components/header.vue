@@ -143,6 +143,7 @@ import SearchIcon from '/@/assets/images/search-icon.svg';
 // 恢复：聊天和其他通知类型图标
 import likeIcon from '/@/assets/icons/svg/like.svg';
 import replyIcon from '/@/assets/icons/svg/reply.svg';
+import defaultNoticeIcon from '/@/assets/icons/svg/notice.svg'; // Add a default notice icon
 
 import { useUserStore } from '/@/store';
 import { useRouter, useRoute } from 'vue-router';
@@ -338,16 +339,23 @@ const goToChatAndMarkRead = async (item: any) => {
 
 // --- 跳转到详情页并标记已读 (示例) ---
 const goToDetailAndMarkRead = async (item: any) => {
-  if (!item.thing_id) return;
+  if (!item.thing_id) {
+    if (!item.is_read) await markSingleNoticeAsRead(item);
+    console.warn(`Notification type ${item.notice_type} with ID ${item.id} has no thing_id for navigation.`);
+    return;
+  }
 
-  // 1. 标记为已读 (如果未读)
   await markSingleNoticeAsRead(item);
 
-  // 2. 跳转到物品详情页 (假设路由名称为 'detail')
-  console.log(`Navigating to detail page for thingId: ${item.thing_id}`);
+  // Ensure frontend_thing_type is present
+  if (!item.frontend_thing_type) {
+    console.warn(`Missing frontend_thing_type for thing_id ${item.thing_id} in notification ${item.id}. Navigation might be incomplete.`);
+  }
+
+  console.log(`Navigating to detail page for thingId: ${item.thing_id}, type: ${item.frontend_thing_type}`);
   router.push({
-      name: 'detail', // 物品详情页的路由名称
-      query: { id: item.thing_id }
+      name: 'detail', 
+      query: { id: item.thing_id, type: item.frontend_thing_type } // Pass type
   });
   onClose(); // 跳转后关闭抽屉
 }
@@ -355,24 +363,30 @@ const goToDetailAndMarkRead = async (item: any) => {
 
 // --- 抽屉内显示辅助函数 ---
 const getNoticeIconOrAvatar = (item: any) => {
-  if (item.notice_type === 'chat_message') {
-    return item.sender?.avatar || AvatarIcon; // 聊天显示发送者头像或默认头像
-  }
   switch (item.notice_type) {
-    case 'like': return likeIcon;
-    case 'reply': return replyIcon;
-    default: return defaultNoticeIcon; // 其他或未知类型显示默认通知图标
+    case 'chat_message':
+      return item.sender?.avatar || AvatarIcon; // Local default avatar
+    case 'like':
+    case 'comment':
+      return item.sender?.avatar || AvatarIcon; // Show sender's avatar
+    case 'reply':
+      return replyIcon; // Or sender's avatar: item.sender?.avatar || AvatarIcon;
+    default:
+      return defaultNoticeIcon; // Fallback to a generic notice icon
   }
 };
 
 const getNoticeTitle = (item: any) => {
+  const senderName = item.sender?.nickname || item.sender?.username || '有人';
   switch (item.notice_type) {
     case 'chat_message':
-      return `来自 ${item.sender?.nickname || item.sender?.username || '未知用户'} 的消息`;
+      return `来自 ${senderName} 的消息`;
     case 'like':
-      return `${item.sender?.nickname || item.sender?.username || '有人'} 点赞了你的评论`;
+      return `${senderName} 点赞了您的${item.thing_id ? '物品' : '动态'}`;
+    case 'comment':
+      return `${senderName} 评论了您的物品`;
     case 'reply':
-      return `${item.sender?.nickname || item.sender?.username || '有人'} 回复了你的评论`;
+      return `${senderName} 回复了您的评论`;
     default:
       return item.title || '系统通知';
   }
@@ -681,13 +695,13 @@ const handlemap = () => {
     height: 36px;
     margin-right: 12px;
     flex-shrink: 0; /* 防止头像被压缩 */
-    object-fit: contain; /* 互动图标可能需要 contain */
-    border-radius: 4px; /* 给互动图标也加点圆角 */
+    object-fit: cover; /* Changed to cover for avatars */
+    border-radius: 50%; /* Make all avatars round by default */
 
-    &.chat-avatar {
-      border-radius: 50%; /* 聊天头像保持圆形 */
-      object-fit: cover; /* 头像使用 cover */
-    }
+    /* &.chat-avatar can be removed or kept if specific styling for chat is still needed */
+    /* &.chat-avatar {
+      // specific chat avatar styles if any, otherwise covered by .avatar
+    } */
   }
 
   .content-box {

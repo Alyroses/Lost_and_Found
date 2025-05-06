@@ -76,6 +76,7 @@
                   </div>
                   <div class="content">
                     <p>{{ item.content }}</p>
+                    <span class="view-chat-prompt">点击查看相应评论</span>
                   </div>
                 </div>
               </div>
@@ -93,12 +94,14 @@
 // 修改：导入 Tabs 相关组件
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { listApi, noticebyidApi, markNoticeReadApi, noticeUnreadCountApi } from '/@/api/index/notice';
+// 修改：Corrected import - noticebyidApi and noticeUnreadCountApi are not exported from notice.ts
+// Use listApi for fetching messages. markAsReadApi is correctly named.
+import { listApi, markAsReadApi } from '/@/api/index/notice';
 import { useUserStore } from "/@/store";
 // 修改：导入 Tabs
 import { message, Spin as ASpin, Empty as AEmpty, Button as AButton, Modal, Tabs as ATabs, TabPane as ATabPane } from 'ant-design-vue';
 // 导入默认图标或不同类型的图标
-import defaultNoticeIcon from 'data:image/png;base64,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';
+import defaultNoticeIcon from '/@/assets/icons/svg/notice.svg';
 import chatIcon from '/@/assets/icons/svg/chat-bubble.svg';
 import likeIcon from '/@/assets/icons/svg/like.svg';
 import replyIcon from '/@/assets/icons/svg/reply.svg';
@@ -119,9 +122,13 @@ const chatMessages = computed(() => {
   return msgData.value.filter(item => item.notice_type === 'chat_message');
 });
 
-// --- 新增：计算属性，筛选互动通知 (点赞和回复) ---
+// --- 新增：计算属性，筛选互动通知 (点赞、回复和评论) ---
 const interactiveNotifications = computed(() => {
-  return msgData.value.filter(item => item.notice_type === 'like' || item.notice_type === 'reply');
+  return msgData.value.filter(item => 
+    item.notice_type === 'like' || 
+    item.notice_type === 'reply' ||
+    item.notice_type === 'comment' // Added 'comment'
+  );
 });
 
 const hasUnreadMessages = computed(() => {
@@ -130,59 +137,62 @@ const hasUnreadMessages = computed(() => {
 
 onMounted(() => {
   if (noticeId) {
-    getMessageByid();
+    getMessageList(); // Changed function name for clarity
   } else {
     message.error("无法获取用户信息，请重新登录");
   }
 });
 
 // 获取消息列表
-const getMessageByid = () => {
+const getMessageList = async () => { // Changed to async
   loading.value = true;
-  noticebyidApi({ user: noticeId })
-    .then(res => {
-      if (res.code === 0 && Array.isArray(res.data)) {
-        // 后端已按时间排序，直接赋值
-        msgData.value = res.data;
-        console.log("Fetched notices:", msgData.value);
-      } else {
-        message.error(res.msg || '获取消息列表失败');
-        msgData.value = [];
-      }
-      loading.value = false;
-    })
-    .catch(err => {
-      console.error("Error fetching notices:", err);
-      message.error('获取消息列表时出错');
-      loading.value = false;
+  try {
+    // Changed to use listApi instead of noticebyidApi
+    const res = await listApi({ user: noticeId }); 
+    if (res.code === 0 && Array.isArray(res.data)) {
+      msgData.value = res.data;
+      console.log("Fetched notices:", msgData.value);
+    } else {
+      message.error(res.msg || '获取消息列表失败');
       msgData.value = [];
-    });
+    }
+  } catch (err) {
+    console.error("Error fetching notices:", err);
+    message.error('获取消息列表时出错');
+    msgData.value = [];
+  } finally {
+    loading.value = false; // Ensure loading is always set to false
+  }
 };
 
 // --- 修改：根据消息类型获取图标或头像 ---
 const getNoticeIconOrAvatar = (item) => {
-  if (item.notice_type === 'chat_message') {
-    // 聊天消息显示发送者头像，如果没有则显示默认头像
-    return item.sender?.avatar || defaultAvatar;
-  }
-  // 互动消息显示对应图标
   switch (item.notice_type) {
-    case 'like': return likeIcon;
-    case 'reply': return replyIcon;
-    default: return defaultNoticeIcon;
+    case 'chat_message':
+      return item.sender?.avatar || defaultAvatar;
+    case 'like':
+    case 'comment':
+      return item.sender?.avatar || defaultAvatar; // Show sender's avatar for likes and comments
+    case 'reply':
+      return replyIcon; // Or sender's avatar if preferred: item.sender?.avatar || defaultAvatar;
+    default:
+      return defaultNoticeIcon; // Fallback to a generic notice icon
   }
 };
 
 // --- 修改：根据消息类型和内容生成标题 ---
 const getNoticeTitle = (item) => {
+  const senderName = item.sender?.nickname || item.sender?.username || '有人';
   switch (item.notice_type) {
     case 'chat_message':
-      // 聊天消息标题显示 "来自 xxx 的消息"
-      return `来自 ${item.sender?.nickname || item.sender?.username || '未知用户'} 的消息`;
+      return `来自 ${senderName} 的消息`;
     case 'like':
-      return `${item.sender?.nickname || item.sender?.username || '有人'} 点赞了你的评论`;
+      // Assuming 'like' notifications are for items if thing_id is present
+      return `${senderName} 点赞了您的${item.thing_id ? '物品' : '动态'}`;
+    case 'comment':
+      return `${senderName} 评论了您的物品`;
     case 'reply':
-      return `${item.sender?.nickname || item.sender?.username || '有人'} 回复了你的评论`;
+      return `${senderName} 回复了您的评论`;
     default:
       return item.title || '系统通知';
   }
@@ -205,10 +215,8 @@ const handleNoticeClick = (item: any) => {
   if (item.notice_type === 'chat_message') {
     goToChatAndMarkRead(item);
   } else if (item.thing_id) {
-    // 其他类型通知，如果有关联物品，则跳转到物品详情页并标记已读
     goToDetailAndMarkRead(item);
   }
-  // 对于没有关联物品的系统通知等，点击可能不执行任何操作或只标记已读
   else if (!item.is_read) {
      markSingleNoticeAsRead(item);
   }
@@ -219,10 +227,9 @@ const markSingleNoticeAsRead = async (item: any) => {
    if (!item.is_read) {
      try {
        console.log(`Marking single notice ${item.id} as read...`);
-       await markNoticeReadApi({ notice_id: item.id }); // 使用导入的 markNoticeReadApi
+       await markAsReadApi({ notice_id: item.id }); // Corrected API function name
        console.log(`Notice ${item.id} marked as read successfully.`);
-       item.is_read = true; // 更新本地状态
-       // 可选：如果需要更新 header 中的未读数，可以触发事件或调用 store action
+       item.is_read = true; 
      } catch (error) {
        console.error(`Failed to mark notice ${item.id} as read:`, error);
        message.error("标记已读失败");
@@ -232,48 +239,65 @@ const markSingleNoticeAsRead = async (item: any) => {
 
 // --- 修改：跳转到聊天页面并标记已读 ---
 const goToChatAndMarkRead = async (item) => {
-  // 检查是否是聊天消息且有发送者信息，以及物品信息
-  // 修改：检查 item.frontend_thing_type
+  // Log the full notification item when trying to go to chat
+  console.log('[MessageView goToChatAndMarkRead] Clicked chat notification item:', JSON.parse(JSON.stringify(item)));
+
   if (item.notice_type !== 'chat_message' || !item.sender || !item.thing_id || !item.frontend_thing_type) {
-    console.warn("无法跳转到聊天，缺少必要信息:", item);
+    console.warn("[MessageView goToChatAndMarkRead] 无法跳转到聊天，缺少必要信息:", 
+        'notice_type:', item.notice_type, 
+        'sender:', item.sender ? 'present' : 'missing', 
+        'thing_id:', item.thing_id, 
+        'frontend_thing_type:', item.frontend_thing_type
+    );
     message.warn("无法跳转到聊天，缺少必要信息");
     return;
   }
 
-  // 1. 如果未读，则调用 API 标记为已读
-  await markSingleNoticeAsRead(item); // 调用辅助函数
+  await markSingleNoticeAsRead(item); 
 
-  // 2. 跳转到聊天页面
-  const recipientIdForChat = item.sender.id; // 聊天的对方是通知的发送者
-  const thingId = item.thing_id;
-  // 修改：使用 item.frontend_thing_type
-  const thingType = item.frontend_thing_type;
+  const recipientIdForChat = item.sender.id; 
+  const thingIdForNav = item.thing_id; // Use a new variable for clarity
+  const thingTypeForNav = item.frontend_thing_type; // Use a new variable for clarity
 
-  console.log(`Navigating to chat with recipientId: ${recipientIdForChat}, thingId: ${thingId}, thingType: ${thingType}`);
-  // --- 修改跳转方式：使用 path 和 query ---
+  console.log(`[MessageView goToChatAndMarkRead] Navigating to chat with recipientId: ${recipientIdForChat}, thingId: ${thingIdForNav}, thingType: ${thingTypeForNav}`);
   router.push({
-    path: `/index/chat/${recipientIdForChat}`, // 使用路径模板
+    path: `/index/chat/${recipientIdForChat}`, 
     query: {
-      thingId: thingId,
-      // 修改：确保使用正确的字段名
-      thingType: thingType,
+      thingId: thingIdForNav,
+      thingType: thingTypeForNav,
     },
   });
-  // --- 修改结束 ---
 };
 
 // --- 新增：跳转到详情页并标记已读 (示例) ---
 const goToDetailAndMarkRead = async (item) => {
-  if (!item.thing_id) return;
+    return;
+  }
 
-  // 1. 标记为已读 (如果未读)
   await markSingleNoticeAsRead(item);
 
-  // 2. 跳转到物品详情页 (假设路由名称为 'detail')
-  console.log(`Navigating to detail page for thingId: ${item.thing_id}`);
+  const thingIdForNav = item.thing_id;
+  const thingTypeForNav = item.frontend_thing_type;
+
+  // Log the specific values and their types being used for navigation
+  console.log(
+    `Preparing to navigate to detail page. Actual values being used:`,
+    `thingId: ${thingIdForNav} (type: ${typeof thingIdForNav}),`,
+    `frontend_thing_type: ${thingTypeForNav} (type: ${typeof thingTypeForNav})`
+  );
+
+  // Ensure frontend_thing_type is present, otherwise detail page might not work correctly
+  if (thingTypeForNav === null || thingTypeForNav === undefined) {
+    console.warn(
+      `frontend_thing_type is null or undefined for thing_id ${thingIdForNav} in notification ${item.id}.` +
+      ` The 'type' query parameter might be omitted by Vue Router or set to an empty value.`
+    );
+    // Navigation will proceed, but the detail page must handle a missing/null type.
+  }
+
   router.push({
-      name: 'detail', // 物品详情页的路由名称
-      query: { id: item.thing_id }
+      name: 'detail', 
+      query: { id: thingIdForNav, type: thingTypeForNav } 
   });
 }
 
@@ -281,9 +305,8 @@ const goToDetailAndMarkRead = async (item) => {
 const markAllAsRead = async () => {
   markAllLoading.value = true;
   try {
-    const res = await markNoticeReadApi({ all: 'true' }); // 发送 all=true 参数
+    const res = await markAsReadApi({ all: 'true' }); // Corrected API function name
     message.success(res.msg || '已将所有消息标记为已读');
-    // 更新本地所有消息状态为已读
     msgData.value.forEach(item => item.is_read = true);
   } catch (error) {
     console.error("Failed to mark all notices as read:", error);
@@ -358,13 +381,10 @@ const markAllAsRead = async () => {
     width: 40px;
     height: 40px;
     margin-right: 12px;
-    object-fit: contain; 
-    border-radius: 4px; 
+    object-fit: cover; /* Changed from contain to cover for avatars */
+    border-radius: 50%; /* Make all avatars round by default for consistency */
 
-    &.chat-avatar {
-      border-radius: 50%; 
-      object-fit: cover; 
-    }
+    /* &.chat-avatar can be removed if all avatars are round, or kept for specific chat styling */
   }
 
   .content-box {
