@@ -61,9 +61,11 @@
         <button class="login btn hidden-sm" @click="goLogin()">登录</button>
       </template>
 
-      <div class="right-icon" @click="msgVisible = true ; markAsRead()">
-        <img :src="MessageIcon" />
-        <span class="msg-point" v-if="unreadCount > 0">{{ unreadCount }}</span>
+      <div class="right-icon" @click="showDrawer">
+        <a-badge :count="unreadCount" :overflow-count="99">
+          <bell-outlined class="icon-message" />
+        </a-badge>
+        <span class="message-text">消息</span>
       </div>
       <div>
         <a-drawer title="消息" placement="right" :closable="true" :maskClosable="true" :visible="msgVisible"
@@ -73,7 +75,6 @@
               <div class="notification-view">
                 <div class="list">
                   <div class="notification-item flex-view" v-for="item in msgData">
-                    <!---->
                     <div class="content-box">
                       <div class="header">
                         <span class="title-txt">{{ item.title }}</span>
@@ -100,22 +101,218 @@
 import { message } from 'ant-design-vue';
 import LogoIcon from '/public/lost_found_logo.png';
 import { listApi as UserListApi } from '/@/api/admin/user';
-import { listApi, noticebyidApi,noticeUnreadCountApi, markNoticeReadApi } from '/@/api/index/notice';
+
 import { getUserRankingApi } from '/@/api/index/user';
 import AvatarIcon from '/@/assets/images/avatar.jpg';
 import logoImage from '/@/assets/images/k-logo.png';
 import MessageIcon from '/@/assets/images/message-icon.svg';
 import SearchIcon from '/@/assets/images/search-icon.svg';
 import { useUserStore } from '/@/store';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import defaultAvatar from '/@/assets/images/avatar.jpg';
+import { BellOutlined } from '@ant-design/icons-vue'; // 导入消息图标
+import { message, Badge as ABadge, Drawer as ADrawer, Spin as ASpin, Empty as AEmpty, Button as AButton, Modal } from 'ant-design-vue';
+// 导入 Notice API
+import { listApi, unreadCountApi, markAsReadApi } from '/@/api/index/notice';
+// 导入图标和工具函数 (假设已存在)
+import chatIcon from '/@/assets/icons/svg/chat-bubble.svg';
+import likeIcon from '/@/assets/icons/svg/like.svg';
+import replyIcon from '/@/assets/icons/svg/reply.svg';
+import defaultNoticeIcon from 'data:image/png;base64,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';
 
-
+// --- 状态 ---
 const router = useRouter();
-const route = useRoute();
 const userStore = useUserStore();
-const currentUserId = userStore.user_id;
+// Removed duplicate declaration of unreadCount
+const msgVisible = ref(false); // 抽屉可见性
+const drawerMsgData = ref<any[]>([]); // 抽屉内的消息列表
+const drawerLoading = ref(false); // 抽屉加载状态
+const markAllLoading = ref(false); // 标记全部已读加载状态
+let pollInterval: number | null = null; // 轮询定时器 ID
 
-import { watch } from 'vue';
-import { useRoute } from 'vue-router';
+// --- 计算属性 ---
+const hasUnreadInDrawer = computed(() => {
+  return drawerMsgData.value.some(item => !item.is_read);
+});
+
+// --- 方法 ---
+// 获取未读消息数
+const fetchUnreadCount = async () => {
+  if (!userStore.user_token) return; // 未登录不获取
+  try {
+    const res = await noticeUnreadCountApi();
+    if (res.code === 0) {
+      unreadCount.value = res.data.count;
+    } else {
+      console.error("获取未读消息数失败:", res.msg);
+    }
+  } catch (error) {
+    console.error("请求未读消息数出错:", error);
+  }
+};
+
+// 显示抽屉并加载数据
+const showDrawer = async () => {
+  if (!userStore.user_token) {
+    message.warn('请先登录');
+    router.push({ name: 'login' });
+    return;
+  }
+  msgVisible.value = true;
+  await fetchDrawerMessages();
+};
+
+// 关闭抽屉
+const onClose = () => {
+  msgVisible.value = false;
+  // 关闭抽屉时可以考虑重新获取未读数，因为可能在抽屉内标记了已读
+  fetchUnreadCount();
+};
+
+// 获取抽屉内的消息列表
+const fetchDrawerMessages = async () => {
+  drawerLoading.value = true;
+  try {
+    // 使用 listApi 获取当前用户的通知
+    const res = await listApi();
+    if (res.code === 0 && Array.isArray(res.data)) {
+      drawerMsgData.value = res.data;
+    } else {
+      message.error(res.msg || '获取消息列表失败');
+      drawerMsgData.value = [];
+    }
+  } catch (error) {
+    console.error("获取抽屉消息列表出错:", error);
+    message.error('加载消息列表时出错');
+    drawerMsgData.value = [];
+  } finally {
+    drawerLoading.value = false;
+  }
+};
+
+// --- 抽屉内使用的辅助函数 (与 message-view.vue 类似) ---
+const getNoticeIconOrAvatar = (item: any) => {
+  if (item.notice_type === 'chat_message') {
+    return item.sender?.avatar || defaultAvatar;
+  }
+  switch (item.notice_type) {
+    case 'like': return likeIcon;
+    case 'reply': return replyIcon;
+    default: return defaultNoticeIcon;
+  }
+};
+
+const getNoticeTitle = (item: any) => {
+  switch (item.notice_type) {
+    case 'chat_message':
+      return `来自 ${item.sender?.nickname || item.sender?.username || '未知用户'} 的消息`;
+    case 'like':
+      return `${item.sender?.nickname || item.sender?.username || '有人'} 点赞了你的评论`;
+    case 'reply':
+      return `${item.sender?.nickname || item.sender?.username || '有人'} 回复了你的评论`;
+    default:
+      return item.title || '系统通知';
+  }
+};
+
+const formatTime = (timeStr: string | null | undefined) => {
+   if (!timeStr) return '';
+   try {
+     const date = new Date(timeStr);
+     // 可以使用更友好的时间格式，例如 '几分钟前', '几小时前'
+     // 这里暂时用简单的本地化时间
+     return date.toLocaleString();
+   } catch (e) {
+     return timeStr;
+   }
+};
+
+// --- 抽屉内的交互函数 ---
+const goToChatAndMarkReadInDrawer = async (item: any) => {
+  if (item.notice_type !== 'chat_message' || !item.sender || !item.thing_id || !item.thing_type) {
+    return;
+  }
+  if (!item.is_read) {
+    try {
+      await markNoticeReadApi({ notice_id: item.id });
+      item.is_read = true; // 更新本地状态
+      // 标记成功后，立即减少未读计数
+      if (unreadCount.value > 0) {
+        unreadCount.value--;
+      }
+    } catch (error) {
+      console.error(`标记通知 ${item.id} 已读失败:`, error);
+    }
+  }
+  // 关闭抽屉
+  onClose();
+  // 跳转
+  router.push({
+    name: 'chat',
+    params: { recipientId: item.sender.id },
+    query: {
+      thingId: item.thing_id,
+      thingType: item.thing_type,
+    },
+  });
+};
+
+const markAllAsReadInDrawer = async () => {
+  markAllLoading.value = true;
+  try {
+    const res = await markNoticeReadApi({ all: 'true' });
+    message.success(res.msg || '已将所有消息标记为已读');
+    drawerMsgData.value.forEach(item => item.is_read = true);
+    unreadCount.value = 0; // 清空未读计数
+  } catch (error) {
+    console.error("标记全部已读失败:", error);
+    message.error(error.msg || '标记全部已读失败');
+  } finally {
+    markAllLoading.value = false;
+  }
+};
+
+// --- 生命周期和监听 ---
+onMounted(() => {
+  fetchUnreadCount(); // 组件挂载时获取一次
+  // 设置定时器轮询未读消息数 (简单实现)
+  pollInterval = setInterval(fetchUnreadCount, 60000); // 每分钟轮询一次
+});
+
+onUnmounted(() => {
+  if (pollInterval) {
+    clearInterval(pollInterval); // 组件卸载时清除定时器
+  }
+});
+
+// 监听登录状态变化，登录后获取未读数
+watch(() => userStore.user_token, (newToken) => {
+  if (newToken) {
+    fetchUnreadCount();
+  } else {
+    unreadCount.value = 0; // 退出登录清空计数
+  }
+});
+
+// 其他 header.vue 已有逻辑
+const handleUserCenter = () => {
+  router.push({ name: 'userCenter', query: { menu: 'info' } });
+};
+const handleLogout = () => {
+  Modal.confirm({
+    title: '确认',
+    content: '确定要退出登录吗？',
+    okText: '确认',
+    cancelText: '取消',
+    onOk: () => {
+      userStore.logout().then((res) => {
+        message.success('退出成功');
+        router.push({ name: 'portal' });
+      });
+    },
+  });
+};
 
 interface RankingItem {
   id: number;
@@ -134,7 +331,7 @@ const keywordRef = ref();
 // 新增数据
 let unreadCount = ref(0);
 let loading = ref(false);
-let msgVisible = ref(false);
+// Removed duplicate declaration of msgVisible
 let msgData = ref([] as any);
 let noticeId = userStore.user_id
 
@@ -523,5 +720,123 @@ const handlemap = () => {
     background: rgba(255,0,0,0.1) !important;
     transform: scale(1.02);
   }
+}
+
+.message-drawer {
+  .drawer-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .drawer-header {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: right;
+  }
+  .notification-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 5px; // 防止滚动条遮挡内容
+  }
+}
+
+.notification-item {
+  padding-top: 12px; // 减小间距
+  position: relative;
+  transition: background-color 0.2s ease;
+
+  &.is-chat {
+    cursor: pointer;
+    &:hover {
+      background-color: #f9f9f9;
+    }
+  }
+
+  .unread-dot {
+    position: absolute;
+    top: 16px; // 调整
+    left: 0px; // 调整
+    width: 8px;
+    height: 8px;
+    background-color: #ff4d4f;
+    border-radius: 50%;
+  }
+
+  .avatar {
+    width: 36px; // 减小头像
+    height: 36px;
+    margin-right: 10px;
+    object-fit: contain;
+    border-radius: 4px;
+
+    &.chat-avatar {
+      border-radius: 50%;
+      object-fit: cover;
+    }
+  }
+
+  .content-box {
+    flex: 1;
+    border-bottom: 1px dashed #e9e9e9;
+    padding: 0 0 12px; // 调整内边距
+    overflow: hidden; // 防止内容溢出
+  }
+
+  .header-line { // 修改：使用 header-line 避免与父组件 header 冲突
+    margin-bottom: 8px; // 减小间距
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .title-txt {
+    color: #315c9e;
+    font-weight: 500;
+    font-size: 14px;
+    transition: font-weight 0.2s ease;
+    white-space: nowrap; // 防止标题换行
+    overflow: hidden;
+    text-overflow: ellipsis; // 标题过长显示省略号
+    max-width: 200px; // 限制标题最大宽度
+
+    &.unread-title {
+      font-weight: 600;
+    }
+  }
+
+  .time {
+    color: #a1adc5;
+    font-size: 12px;
+    margin-left: 8px;
+    white-space: nowrap;
+  }
+
+  .content {
+    color: #484848;
+    font-size: 13px; // 减小字体
+    line-height: 1.5; // 调整行高
+
+    p {
+      margin-bottom: 0;
+      white-space: nowrap; // 内容也单行显示
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .view-chat-prompt {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: #999;
+    }
+  }
+}
+
+:deep(.ant-badge-count) {
+  box-shadow: 0 0 0 1px #fff; // 给徽标添加白色边框
+}
+:deep(.ant-drawer-body) {
+  padding: 16px; // 调整抽屉 body 内边距
 }
 </style>

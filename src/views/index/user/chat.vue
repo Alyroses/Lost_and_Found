@@ -124,7 +124,7 @@ import { BASE_URL } from '/@/store/constants'; // 确保导入 BASE_URL
 // --- 导入图标 ---
 import { LinkOutlined } from '@ant-design/icons-vue';
 import defaultAvatar from '/@/assets/images/avatar.jpg'; // 引入默认头像
-import { formatTimestamp } from '/@/utils/format'; // 假设有时间格式化工具
+
 
 const route = useRoute();
 const router = useRouter();
