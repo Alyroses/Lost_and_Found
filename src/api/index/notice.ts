@@ -12,8 +12,8 @@ const listApi = async (params: any) =>
 // 获取未读消息数
 const unreadCountApi = async (params: any) => get<any>({ url: URL.unreadCount , params: params, data: {}, headers: {}});
 
-// 标记消息为已读
-const markAsReadApi = async (params: any) => post<any>({ url: URL.markAsRead , params: params, data: {}, headers: {}});
+// 标记消息为已读 (确认使用 post data)
+const markAsReadApi = async (data: any) => post<any>({ url: URL.markAsRead , data: data, headers: {}});
 
 export { listApi, unreadCountApi, markAsReadApi };
 

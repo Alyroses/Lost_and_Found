@@ -61,32 +61,61 @@
         <button class="login btn hidden-sm" @click="goLogin()">登录</button>
       </template>
 
-      <div class="right-icon" @click="showDrawer">
-        <a-badge :count="unreadCount" :overflow-count="99">
-          <bell-outlined class="icon-message" />
-        </a-badge>
-        <span class="message-text">消息</span>
+      <!-- 修改：消息图标点击打开抽屉 -->
+      <div class="right-icon" @click="openMessageDrawer">
+        <img :src="MessageIcon" />
+        <span class="msg-point" v-if="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
       </div>
+
+      <!-- 恢复：消息抽屉 -->
       <div>
-        <a-drawer title="消息" placement="right" :closable="true" :maskClosable="true" :visible="msgVisible"
-          @close="onClose">
+        <a-drawer title="消息通知" placement="right" :closable="true" :maskClosable="true" :visible="msgVisible" @close="onClose" width="380">
           <a-spin :spinning="loading" style="min-height: 200px">
             <div class="list-content">
               <div class="notification-view">
                 <div class="list">
-                  <div class="notification-item flex-view" v-for="item in msgData">
+                  <!-- 修改 v-for 循环，并添加 key 和点击事件 -->
+                  <div
+                    class="notification-item flex-view"
+                    v-for="item in msgData"
+                    :key="item.id"
+                    :class="{ 'unread': !item.is_read, 'is-chat': item.notice_type === 'chat_message' }"
+                    @click="handleNoticeClick(item)"
+                  >
+                    <!-- 未读标记 -->
+                    <div class="unread-dot" v-if="!item.is_read"></div>
+
+                    <!-- 根据类型显示不同图标或头像 -->
+                    <img
+                      :src="getNoticeIconOrAvatar(item)"
+                      class="avatar"
+                      :class="{ 'chat-avatar': item.notice_type === 'chat_message' }"
+                    />
                     <div class="content-box">
                       <div class="header">
-                        <span class="title-txt">{{ item.title }}</span>
-                        <br />
-                        <span class="time">{{ item.create_time }}</span>
+                        <!-- 根据类型显示标题 -->
+                        <span class="title-txt" :class="{ 'unread-title': !item.is_read }">
+                          {{ getNoticeTitle(item) }}
+                        </span>
+                        <span class="time">{{ formatTime(item.create_time) }}</span>
                       </div>
-                      <div class="head-text"> </div>
+                      <!-- 聊天消息不显示发送者信息在 head-text (已在标题显示) -->
+                      <div class="head-text" v-if="item.notice_type !== 'chat_message' && item.sender">
+                         <!-- 其他类型通知可显示发送者 -->
+                         <span class="name">来自: {{ item.sender.nickname || item.sender.username }}</span>
+                      </div>
                       <div class="content">
+                        <!-- 显示内容 -->
                         <p>{{ item.content }}</p>
+                        <!-- 聊天消息显示 "点击查看对话" 提示 -->
+                         <span v-if="item.notice_type === 'chat_message'" class="view-chat-prompt">
+                           点击查看对话
+                         </span>
                       </div>
                     </div>
                   </div>
+                  <!-- 添加空状态显示 -->
+                  <a-empty v-if="!loading && msgData.length === 0" description="暂无新消息" style="margin-top: 20px;" />
                 </div>
               </div>
             </div>
@@ -98,108 +127,241 @@
 </template>
 
 <script setup lang="ts">
-import { message } from 'ant-design-vue';
+// 修改：导入所需模块和 API
+import { onMounted, ref, watch, reactive } from 'vue';
+// 恢复：Ant Design Drawer 相关组件
+import { message, Spin as ASpin, Drawer as ADrawer, Empty as AEmpty } from 'ant-design-vue';
 import LogoIcon from '/public/lost_found_logo.png';
+// 修改：导入 listApi
+import { listApi, unreadCountApi, markAsReadApi } from '/@/api/index/notice'; // 确保导入 markAsReadApi
 import { listApi as UserListApi } from '/@/api/admin/user';
-
 import { getUserRankingApi } from '/@/api/index/user';
-import AvatarIcon from '/@/assets/images/avatar.jpg';
+import AvatarIcon from '/@/assets/images/avatar.jpg'; // 默认头像
 import logoImage from '/@/assets/images/k-logo.png';
 import MessageIcon from '/@/assets/images/message-icon.svg';
 import SearchIcon from '/@/assets/images/search-icon.svg';
-import { useUserStore } from '/@/store';
-import { ref, onMounted, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import defaultAvatar from '/@/assets/images/avatar.jpg';
-import { BellOutlined } from '@ant-design/icons-vue'; // 导入消息图标
-import { message, Badge as ABadge, Drawer as ADrawer, Spin as ASpin, Empty as AEmpty, Button as AButton, Modal } from 'ant-design-vue';
-// 导入 Notice API
-import { listApi, unreadCountApi, markAsReadApi } from '/@/api/index/notice';
-// 导入图标和工具函数 (假设已存在)
-import chatIcon from '/@/assets/icons/svg/chat-bubble.svg';
+// 恢复：聊天和其他通知类型图标
 import likeIcon from '/@/assets/icons/svg/like.svg';
 import replyIcon from '/@/assets/icons/svg/reply.svg';
-import defaultNoticeIcon from 'data:image/png;base64,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';
 
-// --- 状态 ---
+import { useUserStore } from '/@/store';
+import { useRouter, useRoute } from 'vue-router';
+
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
-// Removed duplicate declaration of unreadCount
-const msgVisible = ref(false); // 抽屉可见性
-const drawerMsgData = ref<any[]>([]); // 抽屉内的消息列表
-const drawerLoading = ref(false); // 抽屉加载状态
-const markAllLoading = ref(false); // 标记全部已读加载状态
-let pollInterval: number | null = null; // 轮询定时器 ID
+const currentUserId = userStore.user_id;
 
-// --- 计算属性 ---
-const hasUnreadInDrawer = computed(() => {
-  return drawerMsgData.value.some(item => !item.is_read);
+interface RankingItem {
+  id: number;
+  username: string;
+  nickname?: string;
+  total_points: number;
+}
+// 页面数据
+const data = reactive({
+  rankingList: [] as RankingItem[],
+  loading: false, // loading for ranking
+  keyword: '',
 });
 
-// --- 方法 ---
-// 获取未读消息数
-const fetchUnreadCount = async () => {
-  if (!userStore.user_token) return; // 未登录不获取
-  try {
-    const res = await noticeUnreadCountApi();
-    if (res.code === 0) {
-      unreadCount.value = res.data.count;
-    } else {
-      console.error("获取未读消息数失败:", res.msg);
-    }
-  } catch (error) {
-    console.error("请求未读消息数出错:", error);
-  }
-};
+const keywordRef = ref();
+// --- 消息相关状态 ---
+const unreadCount = ref(0);
+// 恢复：抽屉相关状态
+const msgVisible = ref(false);
+const loading = ref(false); // 这个 loading 用于抽屉
+const msgData = ref<any[]>([]);
 
-// 显示抽屉并加载数据
-const showDrawer = async () => {
+onMounted(() => {
+  getUserRanking(); // 获取排名
+  getUnreadCount(); // 获取未读消息数
+  console.log('Header mounted. Avatar URL from store:', userStore.user_avatar);
+});
+
+// --- 监听用户登录状态 ---
+watch(() => userStore.user_token, (newToken) => {
+  if (newToken) {
+    getUnreadCount(); // 登录后获取未读数
+  } else {
+    unreadCount.value = 0; // 登出后清零
+    // 恢复：清空消息和关闭抽屉
+    msgData.value = [];
+    msgVisible.value = false;
+  }
+});
+
+// --- 恢复：消息抽屉方法 ---
+const openMessageDrawer = () => {
   if (!userStore.user_token) {
     message.warn('请先登录');
-    router.push({ name: 'login' });
     return;
   }
   msgVisible.value = true;
-  await fetchDrawerMessages();
+  getMessageList(); // 打开时获取最新消息
+  markAllAsRead(); // 打开时标记所有为已读 (更新红点)
 };
 
-// 关闭抽屉
 const onClose = () => {
   msgVisible.value = false;
-  // 关闭抽屉时可以考虑重新获取未读数，因为可能在抽屉内标记了已读
-  fetchUnreadCount();
 };
 
-// 获取抽屉内的消息列表
-const fetchDrawerMessages = async () => {
-  drawerLoading.value = true;
-  try {
-    // 使用 listApi 获取当前用户的通知
-    const res = await listApi();
-    if (res.code === 0 && Array.isArray(res.data)) {
-      drawerMsgData.value = res.data;
-    } else {
-      message.error(res.msg || '获取消息列表失败');
-      drawerMsgData.value = [];
-    }
-  } catch (error) {
-    console.error("获取抽屉消息列表出错:", error);
-    message.error('加载消息列表时出错');
-    drawerMsgData.value = [];
-  } finally {
-    drawerLoading.value = false;
+// 获取消息列表 (抽屉内)
+const getMessageList = () => {
+  loading.value = true;
+  listApi({}) // 调用获取当前用户消息的 API
+    .then((res) => {
+      if (res.code === 0 && Array.isArray(res.data)) {
+        msgData.value = res.data;
+        console.log("Drawer notices fetched:", msgData.value);
+      } else {
+        message.error(res.msg || '获取消息列表失败');
+        msgData.value = [];
+      }
+      loading.value = false;
+    })
+    .catch((err) => {
+      console.error("Error fetching drawer notices:", err);
+      message.error('获取消息列表时出错');
+      loading.value = false;
+      msgData.value = [];
+    });
+};
+
+// 获取未读消息数 (右上角红点) - 保持不变
+const getUnreadCount = () => {
+  if (userStore.user_token && userStore.user_id) {
+    unreadCountApi({ user: userStore.user_id }).then(res => {
+      if (res.code === 0 && res.data && typeof res.data.count === 'number') {
+        unreadCount.value = res.data.count;
+        console.log('Unread count fetched:', unreadCount.value);
+      } else {
+        unreadCount.value = 0;
+      }
+    }).catch(err => {
+      console.error('Error fetching unread count:', err);
+      unreadCount.value = 0;
+    });
+  } else {
+    unreadCount.value = 0;
   }
 };
 
-// --- 抽屉内使用的辅助函数 (与 message-view.vue 类似) ---
+// 标记所有为已读 (打开抽屉时调用) - 恢复
+const markAllAsRead = async () => {
+  // 只有在有未读消息时才调用 API
+  if (unreadCount.value > 0 && userStore.user_token) {
+    try {
+      // 使用从 notice.ts 导入的 markAsReadApi
+      const res = await markAsReadApi({ all: 'true' });
+      if (res.code === 0) {
+        console.log('Marked all as read successfully via drawer open.');
+        unreadCount.value = 0; // 更新红点计数
+        // 可选：立即更新抽屉内所有项的已读状态，避免延迟
+        msgData.value.forEach(item => item.is_read = true);
+      } else {
+        console.warn('Failed to mark all as read on drawer open:', res.msg);
+      }
+    } catch (err) {
+      console.error('Error marking all as read on drawer open:', err);
+    }
+  }
+};
+
+// --- 恢复：处理通知点击和相关辅助函数 ---
+const handleNoticeClick = (item: any) => {
+  if (item.notice_type === 'chat_message') {
+    goToChatAndMarkRead(item);
+  } else if (item.thing_id) {
+    // 其他类型通知，如果有关联物品，则跳转到物品详情页并标记已读
+    goToDetailAndMarkRead(item);
+  }
+  // 对于没有关联物品的系统通知等，点击可能不执行任何操作或只标记已读
+  else if (!item.is_read) {
+     markSingleNoticeAsRead(item);
+  }
+};
+
+// --- 标记单个通知为已读 (辅助函数) ---
+const markSingleNoticeAsRead = async (item: any) => {
+   if (!item.is_read) {
+     try {
+       console.log(`Marking single notice ${item.id} as read...`);
+       // 使用从 notice.ts 导入的 markAsReadApi
+       await markAsReadApi({ notice_id: item.id });
+       console.log(`Notice ${item.id} marked as read successfully.`);
+       item.is_read = true; // 更新本地状态
+       // 只有在实际减少了未读数时才递减
+       if (unreadCount.value > 0) {
+           // 谨慎递减，因为 markAllAsRead 可能已经清零
+           // 最好在 markAllAsRead 成功后重新获取未读数
+           // 或者，如果 markAllAsRead 只是更新本地状态，这里可以递减
+           unreadCount.value--;
+       }
+     } catch (error) {
+       console.error(`Failed to mark notice ${item.id} as read:`, error);
+       message.error("标记已读失败");
+     }
+   }
+}
+
+// --- 跳转到聊天并标记已读 ---
+const goToChatAndMarkRead = async (item: any) => {
+  // 修改：检查 item.frontend_thing_type
+  // --- 修改这里的条件 ---
+  if (!item.sender || !item.thing_id || !item.frontend_thing_type) {
+  // --- 修改结束 ---
+    console.warn("无法跳转到聊天，缺少必要信息:", item);
+    message.warn("无法跳转到聊天，缺少必要信息");
+    return;
+  }
+
+  // 1. 标记为已读 (如果未读)
+  await markSingleNoticeAsRead(item);
+
+  // 2. 跳转到聊天页面
+  const recipientId = item.sender.id; // 聊天的对方是通知的发送者
+  const thingId = item.thing_id;
+  // 修改：使用 item.frontend_thing_type
+  const thingType = item.frontend_thing_type;
+
+  console.log(`Navigating to chat with recipientId: ${recipientId}, thingId: ${thingId}, thingType: ${thingType}`);
+  router.push({
+    path: `/index/chat/${recipientId}`, // 直接使用路径
+    query: {
+      thingId: thingId,
+      thingType: thingType,
+    },
+  });
+  onClose(); // 跳转后关闭抽屉
+};
+
+// --- 跳转到详情页并标记已读 (示例) ---
+const goToDetailAndMarkRead = async (item: any) => {
+  if (!item.thing_id) return;
+
+  // 1. 标记为已读 (如果未读)
+  await markSingleNoticeAsRead(item);
+
+  // 2. 跳转到物品详情页 (假设路由名称为 'detail')
+  console.log(`Navigating to detail page for thingId: ${item.thing_id}`);
+  router.push({
+      name: 'detail', // 物品详情页的路由名称
+      query: { id: item.thing_id }
+  });
+  onClose(); // 跳转后关闭抽屉
+}
+
+
+// --- 抽屉内显示辅助函数 ---
 const getNoticeIconOrAvatar = (item: any) => {
   if (item.notice_type === 'chat_message') {
-    return item.sender?.avatar || defaultAvatar;
+    return item.sender?.avatar || AvatarIcon; // 聊天显示发送者头像或默认头像
   }
   switch (item.notice_type) {
     case 'like': return likeIcon;
     case 'reply': return replyIcon;
-    default: return defaultNoticeIcon;
+    default: return defaultNoticeIcon; // 其他或未知类型显示默认通知图标
   }
 };
 
@@ -216,190 +378,31 @@ const getNoticeTitle = (item: any) => {
   }
 };
 
+// 恢复 formatTime 的完整实现
 const formatTime = (timeStr: string | null | undefined) => {
    if (!timeStr) return '';
    try {
+     // 可以使用更友好的时间格式化库，如 dayjs
      const date = new Date(timeStr);
-     // 可以使用更友好的时间格式，例如 '几分钟前', '几小时前'
-     // 这里暂时用简单的本地化时间
-     return date.toLocaleString();
+     const now = new Date();
+     const diff = now.getTime() - date.getTime();
+     const diffMinutes = Math.floor(diff / (1000 * 60));
+     const diffHours = Math.floor(diff / (1000 * 60 * 60));
+     const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+     if (diffMinutes < 1) return '刚刚';
+     if (diffMinutes < 60) return `${diffMinutes}分钟前`;
+     if (diffHours < 24) return `${diffHours}小时前`;
+     if (diffDays === 1) return '昨天';
+     // 更早的显示日期
+     return date.toLocaleDateString();
    } catch (e) {
-     return timeStr;
+     return timeStr; // 出错时返回原始字符串
    }
 };
 
-// --- 抽屉内的交互函数 ---
-const goToChatAndMarkReadInDrawer = async (item: any) => {
-  if (item.notice_type !== 'chat_message' || !item.sender || !item.thing_id || !item.thing_type) {
-    return;
-  }
-  if (!item.is_read) {
-    try {
-      await markNoticeReadApi({ notice_id: item.id });
-      item.is_read = true; // 更新本地状态
-      // 标记成功后，立即减少未读计数
-      if (unreadCount.value > 0) {
-        unreadCount.value--;
-      }
-    } catch (error) {
-      console.error(`标记通知 ${item.id} 已读失败:`, error);
-    }
-  }
-  // 关闭抽屉
-  onClose();
-  // 跳转
-  router.push({
-    name: 'chat',
-    params: { recipientId: item.sender.id },
-    query: {
-      thingId: item.thing_id,
-      thingType: item.thing_type,
-    },
-  });
-};
 
-const markAllAsReadInDrawer = async () => {
-  markAllLoading.value = true;
-  try {
-    const res = await markNoticeReadApi({ all: 'true' });
-    message.success(res.msg || '已将所有消息标记为已读');
-    drawerMsgData.value.forEach(item => item.is_read = true);
-    unreadCount.value = 0; // 清空未读计数
-  } catch (error) {
-    console.error("标记全部已读失败:", error);
-    message.error(error.msg || '标记全部已读失败');
-  } finally {
-    markAllLoading.value = false;
-  }
-};
-
-// --- 生命周期和监听 ---
-onMounted(() => {
-  fetchUnreadCount(); // 组件挂载时获取一次
-  // 设置定时器轮询未读消息数 (简单实现)
-  pollInterval = setInterval(fetchUnreadCount, 60000); // 每分钟轮询一次
-});
-
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval); // 组件卸载时清除定时器
-  }
-});
-
-// 监听登录状态变化，登录后获取未读数
-watch(() => userStore.user_token, (newToken) => {
-  if (newToken) {
-    fetchUnreadCount();
-  } else {
-    unreadCount.value = 0; // 退出登录清空计数
-  }
-});
-
-// 其他 header.vue 已有逻辑
-const handleUserCenter = () => {
-  router.push({ name: 'userCenter', query: { menu: 'info' } });
-};
-const handleLogout = () => {
-  Modal.confirm({
-    title: '确认',
-    content: '确定要退出登录吗？',
-    okText: '确认',
-    cancelText: '取消',
-    onOk: () => {
-      userStore.logout().then((res) => {
-        message.success('退出成功');
-        router.push({ name: 'portal' });
-      });
-    },
-  });
-};
-
-interface RankingItem {
-  id: number;
-  username: string;
-  nickname?: string;
-  total_points: number;
-}
-// 页面数据
-const data = reactive({
-  rankingList: [] as RankingItem[],
-  loading: false,
-  keyword: '',
-});
-
-const keywordRef = ref();
-// 新增数据
-let unreadCount = ref(0);
-let loading = ref(false);
-// Removed duplicate declaration of msgVisible
-let msgData = ref([] as any);
-let noticeId = userStore.user_id
-
-
-
-
-onMounted(() => {
-  // getMessageList();
-  getMessageByid();
-  // getUserList();
-  getUserRanking();
-  // 添加日志检查 header 中的 avatar URL
-  console.log('Header mounted. Avatar URL from store:', userStore.user_avatar);
-});
-
-const getMessageByid = () => {
-  loading.value = true
-  noticebyidApi({ user: noticeId }).then(res => {
-    msgData.value = res.data
-    console.log(msgData.value)
-    loading.value = false
-  }).catch(err => {
-    console.log(err)
-    loading.value = false
-  })
-}
-
-const getMessageList = () => {
-  loading.value = true;
-  listApi({})
-    .then((res) => {
-      msgData.value = res.data;
-      loading.value = false;
-    })
-    .catch((err) => {
-      console.log(err);
-      loading.value = false;
-    });
-};
-
-
-
-// 获取未读消息数
-const getUnreadCount = () => {
-  if (userStore.user_token) {
-    noticeUnreadCountApi({ user: userStore.user_id }).then(res => {
-      unreadCount.value = res.data.count;
-    });
-  }
-};
-
-// 标记为已读
-const markAsRead = () => {
-  markNoticeReadApi({ user: userStore.user_id }).then(() => {
-    unreadCount.value = 0;
-  });
-};
-
-// 在消息列表中，每条消息添加跳转逻辑
-const handleNoticeClick = (notice) => {
-  router.push({
-    name: 'detail',
-    query: { id: notice.thing_id },
-    hash: `#comment-${notice.comment_id}`
-  });
-};
-
-// 获取排名数据
+// --- 其他现有方法 (保持不变) ---
 const getUserRanking = () => {
   data.loading = true;
   UserListApi({ keyword: data.keyword })
@@ -425,7 +428,6 @@ const getUserRanking = () => {
     })
     .finally(() => data.loading = false);
 };
-
 const search = () => {
   const keyword = keywordRef.value.value;
   // 统一使用路由跳转（带查询参数）
@@ -434,11 +436,9 @@ const search = () => {
     query: { keyword: keyword }
   });
 };
-
 const goLogin = () => {
   router.push({ name: 'login' });
 };
-
 const goUserCenter = (menuName) => {
   router.push({ name: menuName });
 };
@@ -451,11 +451,6 @@ const quit = () => {
     console.error('Error during logout process:', err);
   });
 };
-const onClose = () => {
-  msgVisible.value = false;
-};
-
-// 跳转到发布失物信息页面
 const handleJoin = () => {
   let userId = userStore.user_id;
   if (userId) {
@@ -465,7 +460,6 @@ const handleJoin = () => {
     message.warn('请先登录！');
   }
 };
-// 跳转到发布招领信息页面
 const foundhandel = () => {
   let userId = userStore.user_id;
   if (userId) {
@@ -593,36 +587,32 @@ const handlemap = () => {
   .right-icon {
     position: relative;
     width: 24px;
-    margin: 4px 0 0 4px;
+    margin: 4px 0 0 4px; // 调整外边距以适应布局
     cursor: pointer;
     display: inline-block;
-    font-size: 0;
+    font-size: 0; // 移除以允许文本显示
 
-    span {
-      position: absolute;
-      right: -15px;
-      top: -3px;
-      font-size: 12px;
-      color: #fff;
-      background: #4684e2;
-      border-radius: 8px;
-      padding: 0 4px;
-      height: 16px;
-      line-height: 16px;
-      font-weight: 600;
-      min-width: 20px;
-      text-align: center;
+    img { // 图标本身的样式
+        vertical-align: middle; // 垂直居中对齐
     }
 
     .msg-point {
       position: absolute;
-      right: -4px;
-      top: 0;
-      min-width: 8px;
-      width: 8px;
-      height: 8px;
-      background: #4684e2;
-      border-radius: 50%;
+      // 修改：调整位置以适应数字显示
+      right: -10px; // 向右移动一点
+      top: -6px;   // 向上移动一点
+      font-size: 10px; // 稍小的字体
+      color: #fff;
+      background: #ff4d4f; // 使用更醒目的红色
+      border-radius: 8px; // 圆角
+      padding: 1px 4px; // 内边距，让数字不贴边
+      height: 16px; // 固定高度
+      line-height: 14px; // 调整行高使数字垂直居中
+      font-weight: 600;
+      min-width: 16px; // 最小宽度，确保单个数字也能显示为圆形
+      text-align: center;
+      box-sizing: border-box; // 包含 padding 和 border
+      z-index: 1; // 确保在图标之上
     }
   }
 
@@ -649,114 +639,37 @@ const handlemap = () => {
   }
 }
 
-.content-list {
-  flex: 1;
+/* --- 抽屉内列表样式 --- */
+.list-content {
+  padding: 0 8px; /* 给列表内容一些内边距 */
+}
 
-  .list-title {
-    color: #152844;
-    font-weight: 600;
-    font-size: 18px;
-    //line-height: 24px;
-    height: 48px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid #cedce4;
+.notification-view {
+  .list {
+    /* 列表容器 */
   }
 }
 
 .notification-item {
-  padding-top: 16px;
-
-  .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    margin-right: 8px;
-  }
-
-  .content-box {
-    -webkit-box-flex: 1;
-    -ms-flex: 1;
-    flex: 1;
-    border-bottom: 1px dashed #e9e9e9;
-    padding: 4px 0 16px;
-  }
-
-  .header {
-    margin-bottom: 12px;
-  }
-
-  .title-txt {
-    color: #315c9e;
-    font-weight: 500;
-    font-size: 14px;
-  }
-
-  .time {
-    color: #a1adc5;
-    font-size: 14px;
-  }
-
-  .head-text {
-    color: #152844;
-    font-weight: 500;
-    font-size: 14px;
-    line-height: 22px;
-
-    .name {
-      margin-right: 8px;
-    }
-  }
-
-  .content {
-    margin-top: 4px;
-    color: #484848;
-    font-size: 14px;
-    line-height: 22px;
-  }
-  .el-table__row {
-    transition: all 0.3s ease;
-  }
-  .highlight-user {
-    background: rgba(255,0,0,0.1) !important;
-    transform: scale(1.02);
-  }
-}
-
-.message-drawer {
-  .drawer-content {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-  .drawer-header {
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #f0f0f0;
-    text-align: right;
-  }
-  .notification-list {
-    flex: 1;
-    overflow-y: auto;
-    padding-right: 5px; // 防止滚动条遮挡内容
-  }
-}
-
-.notification-item {
-  padding-top: 12px; // 减小间距
+  display: flex; /* 使用 flex 布局 */
+  align-items: flex-start; /* 顶部对齐 */
+  padding: 12px 0; /* 上下边距 */
   position: relative;
+  cursor: pointer; /* 默认可点击 */
   transition: background-color 0.2s ease;
 
-  &.is-chat {
-    cursor: pointer;
-    &:hover {
-      background-color: #f9f9f9;
-    }
+  &:hover {
+    background-color: #f9f9f9;
+  }
+
+  &.unread {
+    /* 未读项样式，可以通过加粗标题等方式 */
   }
 
   .unread-dot {
     position: absolute;
-    top: 16px; // 调整
-    left: 0px; // 调整
+    top: 16px;
+    left: -4px; /* 调整到头像左侧 */
     width: 8px;
     height: 8px;
     background-color: #ff4d4f;
@@ -764,64 +677,80 @@ const handlemap = () => {
   }
 
   .avatar {
-    width: 36px; // 减小头像
+    width: 36px; /* 统一大小 */
     height: 36px;
-    margin-right: 10px;
-    object-fit: contain;
-    border-radius: 4px;
+    margin-right: 12px;
+    flex-shrink: 0; /* 防止头像被压缩 */
+    object-fit: contain; /* 互动图标可能需要 contain */
+    border-radius: 4px; /* 给互动图标也加点圆角 */
 
     &.chat-avatar {
-      border-radius: 50%;
-      object-fit: cover;
+      border-radius: 50%; /* 聊天头像保持圆形 */
+      object-fit: cover; /* 头像使用 cover */
     }
   }
 
   .content-box {
-    flex: 1;
+    flex: 1; /* 占据剩余空间 */
     border-bottom: 1px dashed #e9e9e9;
-    padding: 0 0 12px; // 调整内边距
-    overflow: hidden; // 防止内容溢出
+    padding-bottom: 12px;
+    min-width: 0; /* 防止 flex item 内容溢出 */
   }
 
-  .header-line { // 修改：使用 header-line 避免与父组件 header 冲突
-    margin-bottom: 8px; // 减小间距
+  /* 移除最后一项的下划线 */
+  &:last-child .content-box {
+    border-bottom: none;
+  }
+
+  .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 4px; /* 减小间距 */
   }
 
   .title-txt {
-    color: #315c9e;
+    color: #333; /* 深色标题 */
     font-weight: 500;
     font-size: 14px;
-    transition: font-weight 0.2s ease;
-    white-space: nowrap; // 防止标题换行
-    overflow: hidden;
-    text-overflow: ellipsis; // 标题过长显示省略号
-    max-width: 200px; // 限制标题最大宽度
+    white-space: nowrap; /* 防止标题换行 */
+    overflow: hidden; /* 溢出隐藏 */
+    text-overflow: ellipsis; /* 显示省略号 */
+    margin-right: 8px; /* 与时间保持距离 */
 
     &.unread-title {
-      font-weight: 600;
+      font-weight: 600; /* 未读标题加粗 */
+      color: #111;
     }
   }
 
   .time {
     color: #a1adc5;
     font-size: 12px;
-    margin-left: 8px;
     white-space: nowrap;
+    flex-shrink: 0; /* 防止时间被压缩 */
+  }
+
+  .head-text {
+    /* 这个可以移除或用于显示其他信息 */
+     display: none; /* 暂时隐藏 */
   }
 
   .content {
-    color: #484848;
-    font-size: 13px; // 减小字体
-    line-height: 1.5; // 调整行高
+    color: #666; /* 内容颜色稍浅 */
+    font-size: 13px; /* 内容字体稍小 */
+    line-height: 1.5;
+    margin-top: 4px;
+    /* 多行文本溢出显示省略号 (可选) */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* 显示两行 */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
 
     p {
       margin-bottom: 0;
-      white-space: nowrap; // 内容也单行显示
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .view-chat-prompt {
@@ -833,10 +762,29 @@ const handlemap = () => {
   }
 }
 
-:deep(.ant-badge-count) {
-  box-shadow: 0 0 0 1px #fff; // 给徽标添加白色边框
+/* 抽屉内 Empty 状态样式 */
+:deep(.ant-drawer-body) .ant-empty-description {
+  color: #999;
 }
+
+/* 确保 Spin 覆盖整个抽屉内容区域 */
 :deep(.ant-drawer-body) {
-  padding: 16px; // 调整抽屉 body 内边距
+  padding: 0; /* 移除默认内边距，让 Spin 全覆盖 */
+}
+:deep(.ant-spin-container) {
+  padding: 16px; /* 给 Spin 容器添加内边距 */
+}
+
+/* 移除旧的 .content-list, .notification-item (header 内部) 样式 */
+// .content-list { ... }
+// .notification-item { ... } // header 内的旧样式移除
+
+/* 保留 el-table 相关样式 */
+.el-table__row {
+  transition: all 0.3s ease;
+}
+.highlight-user {
+  background: rgba(255,0,0,0.1) !important;
+  transform: scale(1.02);
 }
 </style>

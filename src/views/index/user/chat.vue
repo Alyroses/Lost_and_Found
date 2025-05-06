@@ -25,13 +25,12 @@
           <div
             v-for="msg in messages"
             :key="msg.id || msg.timestamp"
-            :class="['message-item', msg.sender_id === userStore.user_id ? 'sent' : 'received']"
+            :class="['message-item', msg.isOwn ? 'sent' : 'received']"
           >
             <a-avatar :src="msg.sender_avatar || AvatarIcon" class="message-avatar" />
             <div class="message-bubble">
               <div class="message-content">{{ msg.content }}</div>
-              <!-- 时间可以放在气泡下方或悬停显示，简化气泡 -->
-              <!-- <div class="message-time">{{ formatTimestamp(msg.timestamp) }}</div> -->
+
             </div>
              <!-- 显示时间戳 -->
              <div class="message-timestamp">{{ formatTimestamp(msg.timestamp) }}</div>
@@ -88,14 +87,15 @@
               <span v-else>{{recipientInfo.username || '用户' }}</span>
               <span class="online-status" :class="{ 'online': recipientInfo.login_status, 'offline': !recipientInfo.login_status }"></span>
             </li>
-            <!-- 可以从API获取好友列表并循环 -->
+            <!--  移除好友列表占位符 -->
           </ul>
         </div>
         <div class="system-broadcast section">
           <h4 class="section-title">系统广播</h4>
           <ul>
             <!-- 示例广播 -->
-            <li class="broadcast-item">您的好友 {{ recipientInfo.nickname || recipientInfo.username }} 已上线</li>
+            <!-- <li class="broadcast-item">您的好友 {{ recipientInfo.nickname || recipientInfo.username }} 已上线</li> -->
+            <li class="broadcast-item">系统通知会在这里显示。</li>
             <!-- 可以从WebSocket或API获取系统消息 -->
           </ul>
         </div>
@@ -109,7 +109,7 @@
 <script setup lang="ts">
 console.log('--- chat.vue script setup started ---'); // <-- 添加日志
 
-import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '/@/store';
 import { message as antMessage } from 'ant-design-vue';
@@ -129,9 +129,10 @@ import defaultAvatar from '/@/assets/images/avatar.jpg'; // 引入默认头像
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const loggedInUserId = computed(() => Number(userStore.user_id)); // Ensure it's a number
 
-const recipientId = ref<string | number | null>(null);
-const recipientInfo = reactive({ id: '', username: '', nickname: '', avatar: '', login_status: false }); // 添加 id 和 login_status 字段
+const recipientId = ref<number | null>(null); // Store as number
+const recipientInfo = reactive({ id: 0, username: '', nickname: '', avatar: '', login_status: false }); // 修改 id 为 number 类型
 // --- 新增：存储物品信息 ---
 const thingId = ref<string | null>(null);
 const thingType = ref<string | null>(null);
@@ -174,12 +175,41 @@ const connectWebSocket = () => {
 
   ws.value.onmessage = (event) => {
     try {
-      const msg = JSON.parse(event.data);
-      console.log('收到消息:', msg);
-      // 假设收到的消息结构包含 sender_id, content, timestamp 等
-      // 需要补充发送者头像等信息 (如果后端没给，可能需要额外查询)
-      messages.value.push({ ...msg, sender_avatar: msg.sender_id === recipientId.value ? recipientInfo.avatar : userStore.user_avatar });
-      scrollToBottom();
+      const receivedMsg = JSON.parse(event.data as string); 
+      console.log('收到消息:', receivedMsg);
+
+      if (receivedMsg.type === 'presence_update') {
+        if (receivedMsg.userId && Number(receivedMsg.userId) === recipientInfo.id) { // Compare as numbers
+          recipientInfo.login_status = receivedMsg.status;
+          console.log(`Recipient ${recipientInfo.id} presence updated to: ${receivedMsg.status}`);
+        }
+      } else if (receivedMsg.type === 'chat_message' || typeof receivedMsg.type === 'undefined') { 
+        const senderIdNum = Number(receivedMsg.sender_id);
+        const messageIsOwn = senderIdNum === loggedInUserId.value;
+        
+        // --- 修改：如果消息是自己发送的（服务器回显），则不重复添加 ---
+        if (messageIsOwn) {
+          console.log('Received echoed message from self, ignoring. ID:', receivedMsg.id);
+          return; // 不再将回显消息添加到 messages 数组
+        }
+        // --- 修改结束 ---
+        
+        messages.value.push({
+          id: receivedMsg.id || Date.now(), 
+          sender_id: senderIdNum,
+          content: receivedMsg.content,
+          timestamp: receivedMsg.timestamp || new Date().toISOString(),
+          // 此处的 messageIsOwn 实际上会是 false，因为 true 的情况已经 return
+          sender_avatar: receivedMsg.sender_avatar || 
+                         (messageIsOwn /*始终为false*/ ? userStore.user_avatar : recipientInfo.avatar) || 
+                         AvatarIcon,
+          isOwn: messageIsOwn, // 此处 isOwn 始终为 false
+          sender_username: receivedMsg.sender_username 
+        });
+        scrollToBottom();
+      } else {
+        console.warn('Received unhandled WebSocket message type:', receivedMsg.type);
+      }
     } catch (error) {
       console.error('处理接收到的消息时出错:', error);
     }
@@ -218,10 +248,11 @@ const sendMessage = () => {
   }
 
   isSending.value = true;
+  const currentUserIdNum = loggedInUserId.value; // Use computed number version
   const messageToSend = {
     content: newMessage.value.trim(),
-    recipient_id: recipientId.value,
-    sender_id: userStore.user_id, // 确保发送者ID正确
+    recipient_id: recipientId.value, // recipientId is already a number
+    sender_id: currentUserIdNum, 
     timestamp: Date.now(), // 前端生成时间戳，后端可能会覆盖
     // --- 新增：发送消息时也带上物品信息 ---
     thing_id: thingId.value,
@@ -238,7 +269,8 @@ const sendMessage = () => {
     // 发送成功后，将消息添加到本地列表 (模拟实时)
     messages.value.push({
         ...messageToSend,
-        sender_avatar: userStore.user_avatar // 使用当前用户头像
+        sender_avatar: userStore.user_avatar, // 使用当前用户头像
+        isOwn: true // Explicitly set isOwn to true for sent messages
     });
     newMessage.value = '';
     scrollToBottom();
@@ -258,58 +290,62 @@ const sendMessage = () => {
 
 // --- 获取历史消息 ---
 const fetchHistoryMessages = async () => {
-  if (!recipientId.value) {
+  if (!recipientId.value) { // recipientId is now a number
     console.error('Cannot fetch history: recipientId is missing.');
     return;
   }
   try {
+    isLoadingHistory.value = true; // Set loading true
     console.log('Calling getChatHistoryApi...');
     const params: any = { recipientId: recipientId.value };
     if (thingId.value) params.thingId = thingId.value;
     if (thingType.value) params.thingType = thingType.value;
-    // 如果需要分页，可以添加 page 和 pageSize
-    // params.page = 1;
-    // params.pageSize = 50; // 例如一次加载 50 条
 
-    const res = await getHistoryApi(params); // <-- 调用 API
-    console.log('Chat history response:', res); // 打印响应以供调试
+    const res = await getHistoryApi(params);
+    console.log('Chat history response:', res);
 
     if (res.code === 0 && Array.isArray(res.data)) {
-      // 假设后端返回的消息数组是按时间升序排列的
-      const historyMessages = res.data.map(msg => ({
-        id: msg.id, // 假设后端返回消息 ID
-        sender: msg.sender, // 假设后端返回完整的 sender 对象 { id, username, avatar }
-        recipient: msg.recipient, // 假设后端返回完整的 recipient 对象
-        content: msg.content,
-        timestamp: msg.create_time || new Date().toISOString(), // 使用后端时间戳
-        isOwn: msg.sender.id === userStore.user_id, // 判断是否是自己发送的
-      }));
-      // 将历史消息添加到当前消息列表的开头
-      messages.value = [...historyMessages, ...messages.value];
+      const currentUserIdNum = loggedInUserId.value; // Use computed number version
+      const historyMessages = res.data.map(msg => {
+        const senderIdNum = Number(msg.sender.id); // Ensure sender ID from history is a number
+        return {
+          id: msg.id,
+          sender: msg.sender, 
+          recipient: msg.recipient, 
+          content: msg.content,
+          timestamp: msg.create_time || new Date().toISOString(),
+          isOwn: senderIdNum === currentUserIdNum, // Calculate isOwn based on numeric comparison
+          sender_id: senderIdNum, 
+          sender_avatar: msg.sender.avatar || AvatarIcon, 
+          sender_username: msg.sender.username // Keep username if available
+        };
+      });
+      messages.value = [...historyMessages.reverse(), ...messages.value]; // reverse to show oldest first if API returns newest first
 
-      // 加载历史后滚动到底部 (或者滚动到历史消息和新消息的分界处)
       await nextTick();
-      scrollToBottom();
+      scrollToBottom(true); // Force scroll after loading history
 
     } else {
       console.error('Failed to fetch chat history:', res.msg);
       antMessage.error('加载历史消息失败: ' + (res.msg || '未知错误'));
     }
   } catch (error) {
-    console.error('Error fetching chat history:', error); // <-- 打印捕获到的错误
+    console.error('Error fetching chat history:', error);
     antMessage.error('加载历史消息时发生网络或服务器错误');
+  } finally {
+    isLoadingHistory.value = false; // Set loading false
   }
 };
 
 // --- 获取对方用户信息 ---
 const fetchRecipientInfo = async () => {
-    if (!recipientId.value) return;
+    if (!recipientId.value) return; // recipientId is now a number
     isFetchingRecipient.value = true; // 开始加载
     try {
         // --- 调用 API 获取用户信息 ---
-        const res = await getUserProfileByIdApi({ id: recipientId.value });
+        const res = await getUserProfileByIdApi({ id: recipientId.value }); // Pass number
         if (res.data) {
-            recipientInfo.id = res.data.id; // 保存 ID
+            recipientInfo.id = res.data.id; // Assign directly as number
             recipientInfo.username = res.data.username;
             recipientInfo.avatar = res.data.avatar ;
             // --- 保存 login_status ---
@@ -319,7 +355,7 @@ const fetchRecipientInfo = async () => {
         } else {
              antMessage.error('无法加载对方用户信息: 未找到数据');
              // 可以设置默认值或显示错误状态
-             recipientInfo.nickname = `用户${recipientId.value}`;
+             recipientInfo.username = `用户${recipientId.value}`;
              recipientInfo.avatar = AvatarIcon;
              recipientInfo.login_status = false; // 获取失败时设为离线
         }
@@ -330,7 +366,7 @@ const fetchRecipientInfo = async () => {
         const errorMessage = (error as { msg?: string }).msg || '请求失败';
         antMessage.error(`无法加载对方用户信息: ${errorMessage}`);
         // 出错时设置默认值
-        recipientInfo.nickname = `用户${recipientId.value}`;
+        recipientInfo.username = `用户${recipientId.value}`;
         recipientInfo.avatar = AvatarIcon;
         recipientInfo.login_status = false; // 获取失败时设为离线
     } finally {
@@ -389,10 +425,21 @@ const formatTimestamp = (timestamp: number | string): string => {
 onMounted(async () => {
   console.log('--- chat.vue onMounted hook ---'); // <-- 添加日志
   // --- 修改：从路由参数和查询参数获取信息 ---
-  recipientId.value = route.params.recipientId as string; // 从路由参数获取对方ID
+  const routeRecipientId = route.params.recipientId as string;
+  recipientId.value = Number(routeRecipientId); // Convert to number
+  
   thingId.value = route.query.thingId as string;
   thingType.value = route.query.thingType as string;
-  // --- 修改结束 ---
+
+  const currentUserIdNum = loggedInUserId.value;
+
+  // --- 检查是否尝试与自己聊天 ---
+  if (recipientId.value && recipientId.value === currentUserIdNum) {
+    antMessage.error('不能和自己聊天。');
+    router.replace({ name: 'portal' }); // 或者其他合适的页面
+    return;
+  }
+  // --- 检查结束 ---
 
   // --- 修改：检查所有必要参数 ---
   if (!recipientId.value || !thingId.value || !thingType.value) {
@@ -402,7 +449,7 @@ onMounted(async () => {
   }
   // --- 修改结束 ---
 
-  if (!userStore.user_id) {
+  if (!userStore.user_id) { // Check original user_id from store for login status
       antMessage.warn('请先登录');
       router.push({ name: 'login', query: { redirect: route.fullPath } });
       return;
@@ -415,7 +462,7 @@ onMounted(async () => {
   ]);
   // --- 修改结束 ---
 
-  if (recipientInfo.id) {
+  if (recipientInfo.id) { // Check if recipientInfo.id (which is a number) is populated
       connectWebSocket();
   } else {
       antMessage.error("无法建立聊天连接，缺少对方用户信息");
@@ -440,46 +487,51 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
 
 <style scoped lang="less">
  @primary-color: #1890ff; // 主题色
-// 修改导入路径，使用 @ 别名指向 src 目录
-// @import '/@/assets/css/variables.less'; // 或者尝试 @import '@/assets/css/variables.less';
 
 // --- 全局页面样式 ---
 .chat-page-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  // background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%); // 参考图片的蓝紫色渐变
-  background-color: #eef1f5; // 或者使用柔和的背景色
-  overflow: hidden; // 防止内部元素溢出导致滚动条
+  // --- 新增背景图片 ---
+  background-image: url('/bg_main.jpg'); // 假设图片在 public 文件夹下
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  // --- 新增结束 ---
+  overflow: hidden;
 }
 
 // --- 聊天应用主体包裹器 ---
 .chat-app-wrapper {
-  flex: 1; // 占据剩余空间
+  flex: 1;
   display: flex;
-  max-width: 1200px; // 限制最大宽度
-  width: 90%; // 响应式宽度
-  margin: 76px auto; // 上下边距，左右居中
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  overflow: hidden; // 内部元素不溢出
+  max-width: 1200px;
+  width: 90%;
+  margin: 76px auto 20px auto; // 调整下边距
+  // --- 修改背景为半透明，让背景图透出来一点 ---
+  background-color: rgba(255, 255, 255, 0.9); // 轻微透明的白色背景
+  // --- 修改结束 ---
+  border-radius: 12px; // 增加圆角
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); // 调整阴影
+  overflow: hidden;
 }
 
 // --- 侧边栏通用样式 ---
 .sidebar {
-  width: 200px; // 固定宽度
-  flex-shrink: 0; // 防止被压缩
-  background-color: #f7f9fa; // 侧边栏背景色
-  border-right: 1px solid #e8e8e8;
+  width: 220px; // 稍微加宽
+  flex-shrink: 0;
+  // --- 修改背景为半透明 ---
+  background-color: rgba(247, 249, 250, 0.85); // 更透明一些
+  // --- 修改结束 ---
   display: flex;
   flex-direction: column;
   padding: 20px;
 }
 
 .left-sidebar {
-  border-right: 1px solid #e8e8e8;
-  align-items: center; // 居中内容
+  border-right: 1px solid rgba(0, 0, 0, 0.08); // 边框颜色调淡
+  align-items: center;
 
   .user-profile {
     text-align: center;
@@ -488,7 +540,7 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
     .username {
       margin-top: 12px;
       font-weight: bold;
-      color: #333;
+      color: #434343; // 用户名颜色
     }
 
     .online-status {
@@ -504,79 +556,86 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
 }
 
 .right-sidebar {
-  width: 240px; // 右侧栏稍宽
-  border-left: 1px solid #e8e8e8;
-  border-right: none; // 移除右边框
+  width: 260px; // 右侧栏稍宽
+  border-left: 1px solid rgba(0, 0, 0, 0.08); // 边框颜色调淡
+  border-right: none;
 
   .section {
     margin-bottom: 25px;
     .section-title {
       font-size: 14px;
-      color: #888;
+      color: #777; // 标题颜色
       margin-bottom: 10px;
       padding-bottom: 5px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06); // 分割线颜色调淡
     }
     ul {
       list-style: none;
       padding: 0;
       margin: 0;
       li {
-        padding: 6px 0;
+        padding: 8px 5px; // 调整内边距
         font-size: 14px;
         color: #555;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px; // 调整间距
         cursor: pointer;
         transition: background-color 0.2s;
-        border-radius: 4px;
+        border-radius: 6px; // 增加圆角
         &:hover {
-          background-color: #eee;
+          background-color: rgba(0, 0, 0, 0.04); // hover 背景色
         }
-        &.online span {
-          font-weight: 500; // 在线好友加粗
+        &.online span:not(.online-status) { // 排除状态灯
+          font-weight: 500;
+          color: #333; // 在线好友文字颜色
         }
       }
     }
   }
   .broadcast-item {
-    color: #777;
+    color: #666; // 广播文字颜色
     font-size: 13px;
   }
 }
 
 // --- 中间聊天区域 ---
 .chat-main-content {
-  flex: 1; // 占据剩余空间
+  flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: #fff; // 中间区域背景
-  min-width: 0; // 防止 flex item 溢出
+  // --- 修改背景为更透明或移除，依赖 chat-app-wrapper 的背景 ---
+  background-color: transparent; // 或者 rgba(255, 255, 255, 0.8);
+  // --- 修改结束 ---
+  min-width: 0;
 }
 
 // --- 聊天头部 ---
 .chat-header {
-  padding: 15px 20px;
-  font-size: 16px;
-  font-weight: 500; // 调整字重
-  border-bottom: 1px solid #e8e8e8;
+  padding: 18px 25px; // 调整内边距
+  font-size: 17px; // 调整字号
+  font-weight: 500;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08); // 边框颜色调淡
   text-align: center;
-  background-color: #fdfdfd; // 头部背景色
-  color: #333;
-  flex-shrink: 0; // 防止被压缩
+  // --- 修改背景为半透明 ---
+  background-color: rgba(253, 253, 253, 0.8);
+  // --- 修改结束 ---
+  color: #383838; // 头部文字颜色
+  flex-shrink: 0;
 }
 
 // --- 消息列表 ---
 .message-list {
-  flex: 1; // 占据剩余空间
+  flex: 1;
   overflow-y: auto;
-  padding: 20px;
-  background-color: #f5f5f5; // 消息列表背景色
+  padding: 25px; // 增加内边距
+  // --- 修改背景为更透明或移除 ---
+  background-color: transparent; // 或者 rgba(245, 245, 245, 0.75);
+  // --- 修改结束 ---
 
   .loading-history {
     text-align: center;
-    color: #aaa;
+    color: #999; // 加载文字颜色
     padding: 10px 0;
     font-size: 12px;
   }
@@ -585,30 +644,31 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
 // --- 消息项 ---
 .message-item {
   display: flex;
-  margin-bottom: 20px; // 增加消息间距
-  align-items: flex-start; // 头像和气泡顶部对齐
+  margin-bottom: 22px; // 增加消息间距
+  align-items: flex-start;
 
   .message-avatar {
     flex-shrink: 0;
-    margin-top: 0; // 确保头像顶部对齐
+    margin-top: 0;
   }
 
   .message-bubble {
-    padding: 10px 15px;
-    border-radius: 8px; // 调整圆角
-    max-width: calc(100% - 100px); // 限制最大宽度
-    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-    position: relative; // 用于可能的伪元素角标
+    padding: 12px 18px; // 调整气泡内边距
+    border-radius: 10px; // 调整圆角
+    max-width: calc(100% - 120px); // 调整最大宽度
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); // 调整阴影
+    position: relative;
     word-wrap: break-word;
     white-space: pre-wrap;
-    line-height: 1.5;
+    line-height: 1.6; // 调整行高
+    font-size: 14px; // 消息文字大小
   }
 
   .message-timestamp {
     font-size: 11px;
-    color: #aaa;
-    margin: 0 10px; // 时间戳与气泡的间距
-    align-self: center; // 垂直居中时间戳
+    color: #888; // 时间戳颜色
+    margin: 0 12px;
+    align-self: center;
     flex-shrink: 0;
   }
 
@@ -617,15 +677,18 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
     flex-direction: row-reverse;
 
     .message-bubble {
-      background-color: #95ec69; // 绿色气泡
+      // --- 修改发送气泡颜色，使其更柔和或匹配背景 ---
+      background-color: #DCF8C6; // 示例：类似微信的淡绿色
+      color: #333; // 文字颜色
+      // --- 修改结束 ---
       margin-right: 12px;
-      border-radius: 8px 0 8px 8px; // 调整圆角方向
+      border-radius: 10px 0 10px 10px;
     }
     .message-avatar {
-      margin-left: 0; // 移除左边距
+      margin-left: 0;
     }
      .message-timestamp {
-       order: -1; // 将时间戳放在气泡左侧
+       order: -1;
      }
   }
 
@@ -634,27 +697,81 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
     flex-direction: row;
 
     .message-bubble {
-      background-color: #ffffff; // 白色气泡
+      // --- 修改接收气泡颜色 ---
+      background-color: #FFFFFF; // 保持白色或浅灰色
+      color: #333; // 文字颜色
+      // --- 修改结束 ---
       margin-left: 12px;
-      border-radius: 0 8px 8px 8px; // 调整圆角方向
+      border-radius: 0 10px 10px 10px;
     }
      .message-avatar {
-      margin-right: 0; // 移除右边距
+      margin-right: 0;
     }
      .message-timestamp {
-       order: 1; // 将时间戳放在气泡右侧
+       order: 1;
      }
   }
 }
 
 // --- 输入区域 ---
+.message-input-section {
+  border-top: 1px solid rgba(0, 0, 0, 0.08); // 边框颜色调淡
+  // --- 修改背景为半透明 ---
+  background-color: rgba(253, 253, 253, 0.85);
+  // --- 修改结束 ---
+  flex-shrink: 0;
+}
+
+.item-info-card {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  // --- 修改背景为半透明 ---
+  background-color: rgba(240, 242, 245, 0.8);
+  // --- 修改结束 ---
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07); // 边框颜色调淡
+
+  &.loading {
+    color: #888; // 加载文字颜色
+    font-size: 13px;
+  }
+
+  .item-cover {
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  .item-details {
+    flex: 1;
+    min-width: 0;
+
+    .item-title {
+      font-size: 14px;
+      color: #434343; // 物品标题颜色
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+  }
+
+  .view-detail-link {
+    margin-left: 12px;
+    color: #777; // 链接颜色
+    font-size: 16px;
+    &:hover {
+      color: @primary-color;
+    }
+  }
+}
+
 .message-input-area {
   display: flex;
   padding: 15px 20px;
-  border-top: 1px solid #e8e8e8;
-  background-color: #fdfdfd; // 输入区域背景色
-  align-items: flex-end; // 底部对齐
-  flex-shrink: 0; // 防止被压缩
+  background-color: transparent; // 因为父级已有背景
+  align-items: flex-end;
+  flex-shrink: 0;
 
   .message-input {
     flex: 1;
@@ -662,19 +779,20 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
     resize: none;
     border: 1px solid #d9d9d9;
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 10px 15px; // 调整内边距
+    background-color: rgba(255, 255, 255, 0.9); // 输入框背景
+    color: #333; // 输入文字颜色
     &:focus {
       border-color: @primary-color;
       box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+      background-color: #fff; // 聚焦时更不透明
     }
   }
 
   .send-button {
-    // height: auto; // 移除固定高度
-    // min-height: 74px; // 移除最小高度
-    padding: 10px 20px; // 调整内边距
-    height: 40px; // 固定按钮高度
-    align-self: center; // 按钮垂直居中
+    padding: 10px 20px;
+    height: 44px; // 调整按钮高度以匹配输入框
+    align-self: center;
   }
 }
 
@@ -682,10 +800,10 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
 @media (max-width: 992px) {
   .chat-app-wrapper {
     width: 95%;
-    margin: 10px auto;
+    margin: 70px auto 10px auto; // 调整边距
   }
   .sidebar {
-    display: none; // 在较小屏幕上隐藏侧边栏
+    display: none; 
   }
 }
 
@@ -807,8 +925,8 @@ console.log('--- chat.vue setup code executing ---'); // <-- 添加日志
 /* 新增：调整 a-avatar 内部 img 的样式 */
 :deep(.ant-avatar > img) {
   display: block; /* 确保是块级元素 */
-  height: 60px;   /* 让图片高度填充 Avatar 高度 */
-  width: 60px;    /* 让图片宽度填充 Avatar 宽度 */
+  height: 100%;   /* 修改为100%以适应Avatar的size */
+  width: 100%;    /* 修改为100%以适应Avatar的size */
   object-fit: cover; /* 裁剪并覆盖整个区域，保持比例 */
   /* 移除固定的 60px，让其自适应 Avatar 的 size 属性 */
   /* height: 60px; */
