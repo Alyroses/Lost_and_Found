@@ -319,141 +319,278 @@ const markAllAsRead = async () => {
 </script>
 
 <style scoped lang="less">
+// --- 颜色和变量定义 ---
+@theme-color: #4a90e2; // 更清新、现代的蓝色主题色
+@theme-color-light: lighten(@theme-color, 35%);
+@theme-color-dark: darken(@theme-color, 10%);
+
+@background-color: #f4f7f9; // 页面整体背景色，更柔和
+@container-bg-color: #ffffff; // 内容容器背景色
+
+@text-color-primary: #333333; // 主要文字 - 深灰，提高可读性
+@text-color-secondary: #5a6e82; // 次要文字 - 柔和的蓝灰色
+@text-color-placeholder: #a8b6c5; // 占位文字或较浅提示
+
+@border-color-base: #e8edf1; // 基础边框色 - 更柔和
+@border-color-light: #f0f3f6; // 较浅边框色
+
+@unread-dot-color: #ff6b6b; // 未读标记 - 鲜艳但不过于刺眼
+@unread-title-color: @theme-color; // 未读标题 - 使用主题色强调
+
+@hover-bg-color: #e9f2fc; // 列表项悬停背景 - 淡蓝色
+
+// --- 整体布局与容器 ---
 .content-list {
   flex: 1;
+  background-color: @background-color;
+  padding: 20px; // 给整个视图一些外边距感
+  height: 100%; // 确保占满父容器高度
+  display: flex;
+  flex-direction: column;
 
   .list-title-wrapper {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    // border-bottom: 1px solid #cedce4; // 移动到 Tabs 组件外部或移除
-    margin-bottom: 4px;
-    height: 48px;
-    padding: 0 16px; // 给标题区域一些内边距
+    padding: 0 10px 20px 10px; // 调整内边距
+    margin-bottom: 0; // 移除与Tabs的间距，由Tabs自身控制
 
     .list-title {
-      color: #152844;
+      color: @text-color-primary;
       font-weight: 600;
-      font-size: 18px;
-      border-bottom: none; 
-      margin-bottom: 0; 
+      font-size: 22px;
     }
 
     .mark-all-read-btn {
-      padding: 0; 
+      color: @theme-color;
+      font-weight: 500;
+      &:hover {
+        color: @theme-color-dark;
+      }
     }
   }
 }
 
-// 新增：Tabs 样式
+// --- Ant Design Spin 优化 ---
+:deep(.ant-spin-container) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+:deep(.ant-spin-nested-loading) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px; // 确保加载时有最小高度
+}
+
+
+// --- Tabs 样式深度定制 ---
 .message-tabs {
-  // 可以根据需要调整 Tabs 的外边距等
+  flex: 1; // 让 Tabs 占据剩余空间
+  display: flex;
+  flex-direction: column;
+  background-color: @container-bg-color;
+  border-radius: 12px; // 给Tabs容器圆角
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); // 更柔和的阴影
+  overflow: hidden; // 配合圆角
+
   :deep(.ant-tabs-nav) {
-    margin-bottom: 0; // 移除 Tabs 导航下方的默认边距
+    margin-bottom: 0;
+    padding: 8px 20px 0 20px; // 导航区域内边距
+    background-color: lighten(@theme-color-light, 12%); // Tabs导航背景色 - 非常淡的蓝色
+    border-bottom: 1px solid @border-color-base;
+
+    &::before { // 移除导航条下方的默认横线
+      display: none;
+    }
   }
+
   :deep(.ant-tabs-tab) {
-    padding: 12px 16px; // 调整 Tab 内边距
+    padding: 12px 20px; // Tab 内边距
+    margin: 0 8px 0 0 !important; // 调整Tab间距，并覆盖ant默认important
+    font-size: 15px;
+    color: @text-color-secondary;
+    border-radius: 8px 8px 0 0 !important; // 给Tab顶部圆角
+    border: 1px solid transparent !important; // 预留边框位置
+    border-bottom: none !important; // 移除底部边框
+    transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+    position: relative;
+    top: 1px; // 轻微上移，与内容区域边框融合
+
+    &:hover {
+      color: @theme-color;
+      background-color: @theme-color-light;
+    }
+  }
+
+  :deep(.ant-tabs-tab-active) {
+    .ant-tabs-tab-btn {
+      color: @theme-color-dark !important;
+      font-weight: 600;
+    }
+    background-color: @container-bg-color !important; // 活动Tab背景与内容区一致
+    border-color: @border-color-base @border-color-base transparent @border-color-base !important; // 活动Tab边框
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.04); // 活动Tab轻微上浮感
+  }
+
+  :deep(.ant-tabs-ink-bar) {
+    display: none; // 不再使用下划线指示器，通过Tab背景和边框区分
+  }
+
+  :deep(.ant-tabs-content-holder) {
+    flex: 1; // 内容区域占据剩余空间
+    overflow-y: auto; // 内容超出时滚动
+    padding: 20px; // 内容区域内边距
   }
 }
 
-.list-content { // 这个类现在用于每个 TabPane 内部的列表容器
-  padding: 0 16px 16px 16px; // 给列表内容一些内边距
+// --- 列表内容区域 ---
+.list-content.notification-view { // 确保选择器特异性
+  padding: 0; // Tabs内容区域已有padding，这里重置
 }
 
-
+// --- 通知项样式 ---
 .notification-item {
-  padding-top: 16px;
-  position: relative; 
-  transition: background-color 0.2s ease; 
-  cursor: pointer; 
+  display: flex;
+  align-items: flex-start;
+  padding: 20px 15px; // 通知项内边距
+  margin-bottom: 12px; // 通知项间距
+  border-radius: 8px; // 通知项圆角
+  background-color: @container-bg-color; // 默认背景
+  border: 1px solid @border-color-light;
+  transition: all 0.25s ease-in-out;
+  cursor: pointer;
 
-  .unread-dot {
-    position: absolute;
-    top: 20px; 
-    left: 4px; 
-    width: 8px;
-    height: 8px;
-    background-color: #ff4d4f; 
-    border-radius: 50%;
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:hover {
+    background-color: @hover-bg-color;
+    border-color: darken(@border-color-light, 5%);
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.1); // 悬停时主题色阴影
+  }
+
+  &.unread {
+    border-left: 4px solid @unread-dot-color; // 未读项左侧突出显示
+    background-color: lighten(@unread-dot-color, 38%); // 未读项淡背景色
+     &:hover {
+       background-color: lighten(@unread-dot-color, 35%);
+     }
+  }
+
+  .unread-dot { // 未读小圆点，现在通过父级.unread的border-left实现，这个可以隐藏或用于其他目的
+    display: none; 
   }
 
   .avatar {
-    width: 40px;
-    height: 40px;
-    margin-right: 12px;
-    object-fit: cover; /* Changed from contain to cover for avatars */
-    border-radius: 50%; /* Make all avatars round by default for consistency */
-
-    /* &.chat-avatar can be removed if all avatars are round, or kept for specific chat styling */
+    width: 48px;
+    height: 48px;
+    margin-right: 18px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid @container-bg-color; // 头像描边，使其与背景分离
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
 
   .content-box {
     flex: 1;
-    border-bottom: 1px dashed #e9e9e9;
-    padding: 4px 0 16px;
-  }
-  // 移除最后一个 notification-item 的下划线
-  &:last-child .content-box {
+    min-width: 0;
+    padding: 0; // 移除旧的padding和border
     border-bottom: none;
   }
 
-
   .header {
-    margin-bottom: 12px;
     display: flex;
-    justify-content: space-between; 
-    align-items: center; 
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
   }
 
   .title-txt {
-    color: #315c9e;
+    color: @text-color-primary;
     font-weight: 500;
-    font-size: 14px;
-    transition: font-weight 0.2s ease; 
+    font-size: 16px; // 标题字号增大
+    line-height: 1.4;
+    // 多行省略
+    display: -webkit-box;
+    -webkit-line-clamp: 1; // 标题只显示一行，更长内容在content
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
     &.unread-title {
-      font-weight: 600; 
+      color: @unread-title-color; // 未读标题使用主题色
+      font-weight: 600;
     }
   }
 
   .time {
-    color: #a1adc5;
-    font-size: 12px; 
-    margin-left: 16px;
-    white-space: nowrap; 
+    color: @text-color-placeholder;
+    font-size: 12px;
+    white-space: nowrap;
+    margin-left: 15px;
+    flex-shrink: 0;
   }
 
-  .head-text {
-    color: #152844;
-    font-weight: 500;
-    font-size: 14px;
-    line-height: 22px;
-    margin-bottom: 4px; 
-
+  .head-text { // "来自: xxx"
+    color: @text-color-secondary;
+    font-size: 13px;
+    margin-bottom: 10px;
     .name {
-      margin-right: 8px;
+      font-weight: 500;
     }
   }
 
   .content {
-    color: #484848;
+    color: @text-color-secondary;
     font-size: 14px;
-    line-height: 22px;
-
+    line-height: 1.7; // 增加内容行高
+    
     p {
-      margin-bottom: 0; 
+      margin-bottom: 0;
+      // 多行省略
+      display: -webkit-box;
+      -webkit-line-clamp: 2; // 内容最多显示两行
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
     }
 
-    .view-chat-prompt {
-      display: block; 
-      margin-top: 8px;
-      font-size: 12px;
-      color: #999;
+    .view-chat-prompt { // "点击查看对话/评论"
+      display: block;
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: @theme-color;
+      opacity: 0.9;
+      &:hover {
+        opacity: 1;
+        text-decoration: underline;
+      }
     }
   }
 }
 
-:deep(.ant-empty-description) {
-  color: #999;
+// 聊天消息的特殊内容行数处理
+.notification-item.is-chat {
+  .content p {
+    -webkit-line-clamp: 3; // 聊天内容可以显示更多行
+  }
+}
+
+// --- 空状态 ---
+:deep(.ant-empty) {
+  margin-top: 40px; // 与列表项保持一定距离
+  .ant-empty-description {
+    color: @text-color-placeholder;
+    font-size: 15px;
+  }
+  .ant-empty-image svg { // 如果是SVG图标，可以调整颜色
+    // fill: @text-color-placeholder;
+  }
 }
 </style>

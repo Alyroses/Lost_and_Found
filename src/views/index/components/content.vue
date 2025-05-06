@@ -115,10 +115,11 @@ import { listApi as listTagList } from '/@/api/index/tag';
 import { createSkimApi, listApi as listThingList } from '/@/api/index/thing';
 import { useUserStore } from '/@/store';
 import { BASE_URL } from '/@/store/constants';
-import { regionData } from 'element-china-area-data'; // 导入地区数据
-import { ref, reactive, onMounted, nextTick } from 'vue'; // 引入 ref 和 nextTick
+// Import codeToText along with regionData
+import { regionData, codeToText } from 'element-china-area-data'; 
+import { ref, reactive, onMounted, nextTick } from 'vue'; 
 import { AppstoreOutlined, QuestionCircleOutlined, BulbOutlined, FireOutlined, ClockCircleOutlined } from '@ant-design/icons-vue';
-import { useRouter } from 'vue-router'; // 确保导入 useRouter
+import { useRouter } from 'vue-router'; 
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -310,12 +311,59 @@ const getThingList = (data) => {
 };
 
 const handleRegionChange = (value) => {
-  if (value.includes('all')) {
-    getThingList({});
+  // value is an array of selected region codes, e.g., ['430000', '430800', '430802']
+  // or ['all'] if the custom "全部" option is selected.
+  if (value && value.length === 1 && value[0] === 'all') {
+    // If '全部' is selected, clear the region filter
+    const params = { ...contentData.form }; // Start with existing base params if any
+    // Remove region from params if it exists
+    delete params.region;
+    // Re-apply other filters like tab selection, classification, tag
+    if (contentData.selectTabIndex !== 0) {
+        selectTab(contentData.selectTabIndex); // This will call getThingList with appropriate params
+        return;
+    }
+    if (contentData.selectedKeys.length > 0 && getSelectedKey() !== '-1') {
+        params['c'] = getSelectedKey();
+    }
+    if (contentData.selectTagId !== -1) {
+        params['tag'] = contentData.selectTagId;
+    }
+    getThingList(params);
+  } else if (value && value.length > 0) {
+    // Convert selected region codes to a text string like "省/市/区"
+    const regionString = value.map(code => codeToText[code]).join('/');
+    
+    // Preserve other active filters
+    const currentParams = {};
+    if (contentData.selectTabIndex === 1) currentParams.type = 'lost';
+    else if (contentData.selectTabIndex === 2) currentParams.type = 'found';
+    if (contentData.selectTabIndex === 3) currentParams.sort = 'hot';
+    else if (contentData.selectTabIndex === 4) currentParams.sort = 'recent';
+    
+    if (contentData.selectedKeys.length > 0 && getSelectedKey() !== '-1') {
+        currentParams.c = getSelectedKey();
+    }
+    if (contentData.selectTagId !== -1) {
+        currentParams.tag = contentData.selectTagId;
+    }
+    
+    getThingList({ ...currentParams, region: regionString });
   } else {
-    // 根据选中的地区进行筛选
-    const regionString = value.join('/'); // 将数组转为 "省/市/区" 格式
-    getThingList({ region: regionString });
+    // If value is empty (e.g., cascader cleared), behave like '全部'
+    const params = { ...contentData.form };
+    delete params.region;
+    if (contentData.selectTabIndex !== 0) {
+        selectTab(contentData.selectTabIndex);
+        return;
+    }
+    if (contentData.selectedKeys.length > 0 && getSelectedKey() !== '-1') {
+        params['c'] = getSelectedKey();
+    }
+    if (contentData.selectTagId !== -1) {
+        params['tag'] = contentData.selectTagId;
+    }
+    getThingList(params);
   }
 };
 </script>

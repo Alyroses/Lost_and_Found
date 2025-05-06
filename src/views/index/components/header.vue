@@ -11,10 +11,16 @@
       <input placeholder="输入关键词" ref="keywordRef" @keyup.enter="search" />
     </div>
     <div class="right-view">
-      <el-popover placement="right" width="300" trigger="click">
-        <el-table :data="data.rankingList" v-loading="data.loading">
+      <el-popover placement="right" width="350" trigger="click">
+        <el-table :data="data.rankingList" v-loading="data.loading" :default-sort="{prop: 'total_points', order: 'descending'}">
+          <!-- 新增：头像列 -->
+          <el-table-column label="头像" width="70" align="center">
+            <template #default="{ row }">
+              <img :src="row.avatar || AvatarIcon" alt="avatar" class="rank-avatar" style="width: 20px; height: 20px;"/>
+            </template>
+          </el-table-column>
           <!-- 用户昵称列 -->
-          <el-table-column label="用户昵称" width="200">
+          <el-table-column label="用户昵称" width="150">
             <template #default="{ row, $index }">
               <span :style="{ color: row.id === currentUserId ? 'red' : '#ccaf13' }">
                 {{ $index + 1 }}. {{ row.nickname || row.username || '匿名用户' }}
@@ -22,7 +28,7 @@
             </template>
           </el-table-column>
           <!-- 积分列 -->
-          <el-table-column label="积分" width="100">
+          <el-table-column label="积分" width="80" prop="total_points" sortable>
             <template #default="{ row }">
               <span :style="{ color: row.id === currentUserId ? 'red' : '#ccaf13' }">
                 {{ row.total_points || 0 }}
@@ -158,6 +164,7 @@ interface RankingItem {
   username: string;
   nickname?: string;
   total_points: number;
+  avatar?: string; // 新增 avatar 属性
 }
 // 页面数据
 const data = reactive({
@@ -419,14 +426,20 @@ const formatTime = (timeStr: string | null | undefined) => {
 // --- 其他现有方法 (保持不变) ---
 const getUserRanking = () => {
   data.loading = true;
-  UserListApi({ keyword: data.keyword })
+  // 注意：getUserRankingApi 在 user.ts 中定义时没有 data 参数，这里移除
+  getUserRankingApi({}) // 确保 API 调用与定义一致
     .then(res => {
-      data.rankingList = res.data.map(item => ({
-        ...item,
-        // 数据清洗
-        nickname: item.nickname?.trim() || null,
-        username: item.username || `用户_${item.id.slice(0,6)}` // 生成易读的默认名
-      }));
+      if (res.code === 0 && Array.isArray(res.data)) { // 确保 res.data 是数组
+        data.rankingList = res.data.map(item => ({
+          ...item,
+          avatar: item.avatar ? (item.avatar.startsWith('http') ? item.avatar : `${BASE_URL}${item.avatar}`) : AvatarIcon, // 处理头像 URL
+          nickname: item.nickname?.trim() || null,
+          username: item.username || `用户_${item.id.slice(0,6)}`
+        }));
+      } else {
+        data.rankingList = []; // 获取失败或数据格式不正确时清空
+        message.error(res.msg || '获取排名数据失败');
+      }
       
       // 自动滚动到当前用户位置
       setTimeout(() => {
@@ -578,9 +591,18 @@ const handlemap = () => {
   flex: 1;
   display: flex;
   flex-direction: row;
-  gap: 20px;
+  gap: 15px; // 稍微调整按钮间距
   justify-content: flex-end;
   /* 内容右对齐 */
+  align-items: center; // 垂直居中对齐所有右侧元素
+
+  .rank-avatar { // 新增头像样式
+    width: 32px; // 减小宽度
+    height: 32px; // 减小高度
+    border-radius: 50%;
+    object-fit: cover;
+    vertical-align: middle;
+  }
 
   .username {
     height: 32px;
@@ -637,7 +659,53 @@ const handlemap = () => {
     vertical-align: middle;
     cursor: pointer;
     object-fit: cover; // 确保头像不变形
+    transition: transform 0.3s ease, box-shadow 0.3s ease; // 添加过渡
+
+    &:hover {
+      transform: scale(1.1); // 悬停时放大
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2); // 悬停时阴影
+    }
   }
+
+  // --- 为指定的 a-button 添加样式 ---
+  .el-popover__reference-wrapper .el-button, // Target button inside el-popover
+  > .ant-btn-link { // Target direct child a-button type="link"
+    font-size: 16px; // 增大字体
+    padding: 4px 12px; // 调整内边距以适应边框
+    transition: all 0.3s ease; // 添加过渡效果
+    color: #61480d; // 默认颜色，可以根据主题调整
+    font-weight: 500; // 字体稍粗
+    border: 2px solid transparent; // 预留边框空间，初始透明
+    border-radius: 6px; // 圆角
+    background-clip: padding-box; // 重要：确保背景不超出内边距
+    position: relative; // 用于伪元素定位
+    background-color: #8ce3e3f5;
+    &::before { // 用于创建渐变边框的伪元素
+      content: '';
+      position: absolute;
+      top: -2px; left: -2px; right: -2px; bottom: -2px; // 覆盖边框区域
+      z-index: -1; // 置于按钮内容之下
+      border-radius: inherit; // 继承父元素的圆角
+      background: linear-gradient(to right, #6dd5ed, #2193b0); // 示例渐变色，请替换为你喜欢的颜色
+      opacity: 0; // 默认隐藏渐变边框
+      transition: opacity 0.3s ease;
+    }
+
+    &:hover {
+      color: #1890ff; // 悬停时颜色变为 Ant Design 主色调
+      transform: translateY(-2px); // 轻微上移效果
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1); // 轻微文字阴影
+      
+      &::before {
+        opacity: 1; // 悬停时显示渐变边框
+      }
+    }
+
+    &:active {
+      transform: translateY(-1px); // 点击时效果
+    }
+  }
+  // --- a-button 样式结束 ---
 
   .btn {
     background: #4684e2;

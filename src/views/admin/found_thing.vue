@@ -144,10 +144,10 @@
                cancel-text="否"
                @confirm="deleteFoundThing(record)"
              >
-               <a-button type="primary" danger size="small">
+               <!-- <a-button type="primary" danger size="small">
                  <template #icon><DeleteOutlined /></template>
                  删除
-               </a-button>
+               </a-button> -->
              </a-popconfirm>
            </a-space>
         </template>
