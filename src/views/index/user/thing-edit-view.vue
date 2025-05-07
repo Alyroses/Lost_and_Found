@@ -39,7 +39,7 @@
                             <a-divider type="vertical" />
                             <a-popconfirm title="确定取消发布吗?" ok-text="是" cancel-text="否"
                                 @confirm="handleConfirmDelete(record)">
-                                <a href="#" class="action-button">取消发布</a>
+                                <a href="#" class="action-button">删除发布</a>
                             </a-popconfirm>
                             <a-divider type="vertical" />
                             <a-popconfirm title="确定标记为配对成功吗?" ok-text="是" cancel-text="否"
@@ -110,8 +110,8 @@
                                 </a-form-item>
                             </a-col>
                             <a-col span="12">
-                                <a-form-item :label="activeViewType === 'lost' ? '悬赏积分' : '拾获积分'" name="price">
-                                    <a-input-number placeholder="请输入积分" :min="0" v-model:value="modal.form.price"
+                                <a-form-item :label="activeViewType === 'lost' ? '悬赏积分' : '拾获积分'" name="points">
+                                    <a-input-number placeholder="请输入积分" :min="0" v-model:value="modal.form.points"
                                         style="width: 100%" />
                                 </a-form-item>
                             </a-col>
@@ -163,7 +163,7 @@ const activeViewType = ref<'lost' | 'found'>('lost');
 
 const unifiedColumns = reactive([
     { title: '标题', dataIndex: 'title', key: 'title', width: 200, ellipsis: true },
-    { title: '积分', dataIndex: 'price', key: 'price', width: 100 },
+    { title: '积分', dataIndex: 'points', key: 'points', width: 100 },
     { title: '地区', dataIndex: 'location', key: 'location', width: 180, ellipsis: true },
     { title: '详细描述', dataIndex: 'description', key: 'description', ellipsis: true },
     { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
@@ -259,7 +259,7 @@ const modal = reactive({
         title: undefined as string | undefined,
         classification: undefined as string | undefined,
         tag: [] as string[],
-        price: undefined as number | undefined,
+        points: undefined as number | undefined,
         mobile: undefined as string | undefined,
         location: undefined as string | undefined,
         status: undefined as string | undefined, // Usually set by backend
@@ -272,7 +272,7 @@ const modal = reactive({
     rules: {
         title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
         classification: [{ required: true, message: '请选择物品分类', trigger: 'change' }],
-        price: [{ required: true, message: '请输入悬赏或拾获积分', trigger: 'blur', type: 'number' }],
+        points: [{ required: true, message: '请输入悬赏或拾获积分', trigger: 'blur', type: 'number' }],
         mobile: [{ required: true, message: '请输入联系人手机号', trigger: 'blur' }, { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }],
         location: [{ required: true, message: '请选择地区', trigger: 'change' }],
         description: [{ required: true, message: '请输入详细描述', trigger: 'blur' }],
@@ -295,24 +295,44 @@ onMounted(() => {
 
 const getUserLostThings = () => {
     dataLost.loading = true;
-    listUserThingApi({ user: userStore.user_id, page: dataLost.page, pageSize: dataLost.pageSize })
+    listUserThingApi({ user: userStore.user_id, page: dataLost.page, pageSize: dataLost.pageSize, type: 'lost' })
         .then((res) => {
-            dataLost.dataList = res.data.map((item: any) => ({ ...item, key: item.id }));
-            dataLost.total = res.total || res.data.length; // Assuming API returns total
+            // 确保响应数据格式正确
+            if (res && res.data && Array.isArray(res.data.list)) {
+                dataLost.dataList = res.data.list.map((item: any) => ({ ...item, key: item.id }));
+                dataLost.total = res.data.total || res.data.list.length;
+            } else {
+                throw new Error('响应数据格式不正确');
+            }
         })
-        .catch((err) => message.error(err.msg || '获取我发布的失物失败'))
-        .finally(() => dataLost.loading = false);
+        .catch((err) => {
+            console.error(err); // 打印错误信息以便调试
+            message.error(err.msg || '获取我发布的失物失败');
+        })
+        .finally(() => {
+            dataLost.loading = false;
+        });
 };
 
 const getUserFoundThings = () => {
     dataFound.loading = true;
-    listUserFoundThingApi({ user: userStore.user_id, page: dataFound.page, pageSize: dataFound.pageSize })
+    listUserThingApi({ user: userStore.user_id, page: dataFound.page, pageSize: dataFound.pageSize, type: 'found' })
         .then((res) => {
-            dataFound.dataList = res.data.map((item: any) => ({ ...item, key: item.id }));
-            dataFound.total = res.total || res.data.length; // Assuming API returns total
+            // 确保响应数据格式正确
+            if (res && res.data && Array.isArray(res.data.list)) {
+                dataFound.dataList = res.data.list.map((item: any) => ({ ...item, key: item.id }));
+                dataFound.total = res.data.total || res.data.list.length;
+            } else {
+                throw new Error('响应数据格式不正确');
+            }
         })
-        .catch((err) => message.error(err.msg || '获取我发布的招领失败'))
-        .finally(() => dataFound.loading = false);
+        .catch((err) => {
+            console.error(err); // 打印错误信息以便调试
+            message.error(err.msg || '获取我发布的招领失败');
+        })
+        .finally(() => {
+            dataFound.loading = false;
+        });
 };
 
 const getCDataList = () => listClassificationApi({}).then(res => modal.cData = res.data);
@@ -337,7 +357,7 @@ const handleEdit = (record: any) => {
     modal.form.title = record.title;
     modal.form.classification = record.classification_id || record.classification; // classification might be an object or just id
     modal.form.tag = Array.isArray(record.tag) ? record.tag.map(t => typeof t === 'object' ? t.id : t) : [];
-    modal.form.price = record.price;
+    modal.form.points = record.points;
     modal.form.mobile = record.mobile;
     modal.form.location = record.location;
     modal.form.description = record.description;
@@ -414,7 +434,7 @@ const handleOk = () => {
         }
 
         formData.append('description', modal.form.description || '');
-        formData.append('price', String(modal.form.price || 0));
+        formData.append('points', String(modal.form.points || 0));
         formData.append('mobile', modal.form.mobile || '');
         formData.append('location', modal.form.location || '');
         formData.append('user', userStore.user_id); // Associate with current user
@@ -442,7 +462,7 @@ const resetModal = () => {
     modal.form.title = undefined;
     modal.form.classification = undefined;
     modal.form.tag = [];
-    modal.form.price = undefined;
+    modal.form.points = undefined;
     modal.form.mobile = undefined;
     modal.form.location = undefined;
     modal.form.description = undefined;
@@ -461,7 +481,8 @@ const hideModal = () => modal.visile = false;
     padding: 24px;
     display: flex;
     flex-direction: column;
-    width: 100%; 
+    width: 123%; /* 保持100%，使其填充父容器提供的空间 */
+    /* 如果thing-edit-view是flex子项，可以考虑 flex: 1; 来占据剩余空间 */
 }
 
 .view-toggle-buttons {

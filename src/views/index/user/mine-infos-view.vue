@@ -160,7 +160,7 @@ const getWishThingList = () => {
 }
 
 .mine-infos-view {
-  width: 235px;
+  width: 200px; // 减小宽度，为 thing-edit-view 提供更多空间
   margin-right: 20px;
   border: 1px solid #cedce4;
   height: fit-content;
@@ -360,11 +360,11 @@ const getWishThingList = () => {
 
     .title {
       color: #152844;
-      font-weight: 600;
-      font-size: 14px;
+      font-weight: 700; // 加粗
+      font-size: 16px; // 增大字体
       line-height: 18px;
       height: 18px;
-      margin-bottom: 8px;
+      margin-bottom: 12px; // 调整间距
     }
 
     .list {
@@ -387,7 +387,8 @@ const getWishThingList = () => {
 
       span {
         color: #152844;
-        font-size: 14px;
+        font-size: 15px; // 增大字体
+        font-weight: 500; // 轻微加粗
       }
     }
 

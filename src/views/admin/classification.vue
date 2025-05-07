@@ -1,11 +1,11 @@
 <template>
   <div>
     <!--页面区域-->
-    <div class="page-view">
+    <div class="management-container">
       <div class="table-operations">
         <a-space>
           <a-button type="primary" @click="handleAdd">新增</a-button>
-          <a-button @click="handleBatchDelete">批量删除</a-button>
+          <a-button @click="handleBatchDelete" :disabled="data.selectedRowKeys.length === 0">批量删除</a-button>
         </a-space>
       </div>
       <a-table
@@ -23,17 +23,24 @@
           onChange: (current) => (data.page = current),
           showSizeChanger: false,
           showTotal: (total) => `共${total}条数据`,
+          style: { marginTop: '16px' }
         }"
+        class="content-table"
       >
         <template #bodyCell="{ text, record, index, column }">
           <template v-if="column.key === 'operation'">
-            <span>
-              <a @click="handleEdit(record)">编辑</a>
-              <a-divider type="vertical" />
+            <a-space>
+              <a-button type="primary" size="small" @click="handleEdit(record)">
+                <template #icon><EditOutlined /></template>
+                编辑
+              </a-button>
               <a-popconfirm title="确定删除?" ok-text="是" cancel-text="否" @confirm="confirmDelete(record)">
-                <a href="#">删除</a>
+                <a-button type="primary" danger size="small">
+                  <template #icon><DeleteOutlined /></template>
+                  删除
+                </a-button>
               </a-popconfirm>
-            </span>
+            </a-space>
           </template>
         </template>
       </a-table>
@@ -69,8 +76,11 @@
 <script setup lang="ts">
   import { FormInstance, message } from 'ant-design-vue';
   import { createApi, listApi, updateApi, deleteApi } from '/@/api/admin/classification';
+  import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'; // 导入图标
 
-  const columns = reactive([
+  import type { ColumnType } from 'ant-design-vue/es/table';
+
+  const columns: ColumnType<any>[] = reactive([
     {
       title: '分类名称',
       dataIndex: 'title',
@@ -81,7 +91,7 @@
       dataIndex: 'action',
       key: 'operation',
       align: 'center',
-      fixed: 'right',
+      fixed: 'right' as 'right',
       width: 140,
     },
   ]);
@@ -243,20 +253,60 @@
 </script>
 
 <style scoped lang="less">
-  .page-view {
-    min-height: 100%;
-    background: #f6222238;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
+
+.management-container {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.table-operations {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.content-table {
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+
+  :deep(.ant-table-thead > tr > th) {
+    background-color: #fffaf5; // 更新背景颜色
+    font-weight: 600;
+    color: #333;
   }
 
-  .table-operations {
-    margin-bottom: 16px;
-    text-align: right;
-  }
+  :deep(.ant-table-tbody > tr > td) {
+    padding: 12px 16px;
 
-  .table-operations > button {
-    margin-right: 8px;
+    // 为操作列中的 primary small 按钮设置圆角
+    .ant-btn-primary.ant-btn-sm {
+      border-radius: 10px;
+    }
   }
+}
+
+/* 移除旧的 action-links 样式，因为 a-button 和 a-space 会处理样式和间距 */
+/*
+.action-links a { 
+  color: #3498db; 
+  margin: 0 4px;
+  &:hover {
+    text-decoration: underline;
+  }
+  &.danger-link {
+    color: #e74c3c; 
+  }
+}
+*/
+
+// Ensure modal form items are well-spaced if not already
+:deep(.ant-form-item) {
+  margin-bottom: 16px;
+}
 </style>

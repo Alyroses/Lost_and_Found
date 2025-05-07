@@ -4,6 +4,8 @@
       <img :src="LogoIcon" alt="logo" class="logo-icon" />
       <div class="login-tab">
         <div class="tab-selected">
+          <!-- <span>失物招领平台</span> -->
+          <!-- <h3>失物招领平台</h3> -->
           <span>账户登录</span>
           <span class="tabline tabline-width"></span>
         </div>
@@ -37,8 +39,7 @@
         <a class="forget-pwd" style="text-align: right">忘记密码？</a>
       </div> -->
       <div class="third_party">
-        <a @click="qq_login" class="qq_login">QQ</a>
-        <a href="#" class="weixin_login">微信</a>
+        <div class="lost_found_a">失物招领平台系统</div>
         <a @click="handleCreateUser" class="register_btn">注册新帐号</a>
       </div>
     </div>
@@ -357,7 +358,13 @@ textarea {
 .captcha-img{
   margin-right: 20px;
 }
-
+.lost_found_a{
+  font-size: 30px;
+  margin-top: 5px;
+  margin-left: 96px;
+  color: #faf5f5;
+  font-weight: bold;
+}
 .third_party{border-top:1px solid #e0e0e0;margin-top:44px}
 .qq_login,.weixin_login,.register_btn{float:left;line-height:30px;margin-left:15px;margin-top:15px;color:#666;font-size:14px;text-indent:22px;background:url(../images/QQ-weixin.png) left 7px no-repeat;}
 .qq_login:hover,.weixin_login:hover,.register_btn:hover{color:#e3101e;text-decoration:underline}

@@ -77,10 +77,10 @@
             <span>评论管理</span>
           </a-menu-item>
           <!-- 6. 通知公告 (移出子菜单) -->
-          <a-menu-item key="notice">
+          <!-- <a-menu-item key="consultation">
             <appstore-outlined />
             <span>通知公告</span>
-          </a-menu-item>
+          </a-menu-item> -->
           <!-- 7. 错误日志 (移出子菜单) -->
           <a-menu-item key="errorLog">
             <appstore-outlined />
