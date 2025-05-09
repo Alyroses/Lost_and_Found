@@ -79,6 +79,12 @@
             {{ getStatusText(record.status) }}
           </a-tag>
         </template>
+        <!-- 新增：匹配状态列渲染 -->
+        <template v-else-if="column.key === 'match_status_display'">
+          <a-tag :color="formatAdminMatchStatus(record.match_status).color">
+            {{ formatAdminMatchStatus(record.match_status).text }}
+          </a-tag>
+        </template>
         <!-- 操作列渲染 -->
         <template v-else-if="column.key === 'operation'">
            <a-space size="small">
@@ -216,7 +222,15 @@ const columns: ColumnType<any>[] = reactive([
   { title: '拾取地点', dataIndex: 'location', key: 'location', align: 'center' },
   // { title: '拾取时间', dataIndex: 'found_time', key: 'found_time', align: 'center' }, // 后端若无此字段可移除
   { title: '发布者', key: 'username', align: 'center' }, // 使用 key 匹配 template
-  { title: '状态', dataIndex: 'status', key: 'status', align: 'center', width: 100 },
+  { title: '状态', dataIndex: 'status', key: 'status', align: 'center', width: 100 }, // 物品本身的审核/上下架状态
+  // 新增：匹配状态列
+  {
+    title: '匹配状态',
+    dataIndex: 'match_status',
+    key: 'match_status_display', // 使用新的 key
+    align: 'center',
+    width: 120,
+  },
   { title: '操作', key: 'operation', align: 'center', fixed: 'right', width: 200 }, // 调整宽度
 ]);
 
@@ -415,6 +429,25 @@ const getStatusText = (status: string) => {
     case '1': return '已上架';
     case '2': return '已下架';
     default: return '未知';
+  }
+};
+
+// 新增：格式化后台显示的匹配状态文本和颜色
+const formatAdminMatchStatus = (matchStatus: string | null | undefined): { text: string; color: string } => {
+  if (!matchStatus || matchStatus === 'cancelled') {
+    return { text: '无匹配', color: 'default' };
+  }
+  switch (matchStatus) {
+    case 'pending':
+      return { text: '匹配处理中', color: 'processing' };
+    case 'confirmed':
+      return { text: '匹配已同意', color: 'success' };
+    case 'rejected':
+      return { text: '匹配已拒绝', color: 'error' };
+    case 'completed':
+      return { text: '匹配已完成', color: 'blue' };
+    default:
+      return { text: '未知状态', color: 'default' };
   }
 };
 

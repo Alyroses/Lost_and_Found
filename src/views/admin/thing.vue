@@ -81,6 +81,12 @@
               {{ getStatusText(record.status) }}
             </a-tag>
           </template>
+          <!-- 新增：匹配状态列渲染 -->
+          <template v-else-if="column.key === 'match_status_display'">
+            <a-tag :color="formatAdminMatchStatus(record.match_status).color">
+              {{ formatAdminMatchStatus(record.match_status).text }}
+            </a-tag>
+          </template>
           <!-- 修改：操作列渲染 -->
           <template v-else-if="column.key === 'operation'">
             <a-space size="small">
@@ -358,12 +364,20 @@ const columns = reactive([
     customRender: ({ text, record, index, column }) => (text ? text.substring(0, 10) + '...' : '--'),
   },
   {
-    title: '状态',
+    title: '状态', // 物品本身的审核/上下架状态
     dataIndex: 'status',
     key: 'status',
     align: 'center',
     width: 100,
     // customRender 已移至 template
+  },
+  // 新增：匹配状态列
+  {
+    title: '匹配状态',
+    dataIndex: 'match_status',
+    key: 'match_status_display', // 使用新的 key
+    align: 'center',
+    width: 120,
   },
   {
     title: '操作',
@@ -767,6 +781,25 @@ const resetModal = () => {
 // 关闭弹窗
 const hideModal = () => {
   modal.visile = false;
+};
+
+// 新增：格式化后台显示的匹配状态文本和颜色
+const formatAdminMatchStatus = (matchStatus: string | null | undefined): { text: string; color: string } => {
+  if (!matchStatus || matchStatus === 'cancelled') {
+    return { text: '无匹配', color: 'default' };
+  }
+  switch (matchStatus) {
+    case 'pending':
+      return { text: '匹配处理中', color: 'processing' };
+    case 'confirmed':
+      return { text: '匹配已同意', color: 'success' };
+    case 'rejected':
+      return { text: '匹配已拒绝', color: 'error' };
+    case 'completed':
+      return { text: '匹配已完成', color: 'blue' };
+    default:
+      return { text: '未知状态', color: 'default' };
+  }
 };
 
 // 新增：获取状态文本的辅助函数

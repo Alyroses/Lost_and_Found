@@ -14,7 +14,14 @@
         <div class="thing-info-main"> <!-- 修改 class -->
           <div class="thing-state">
             <span class="state">状态:</span>
-            <span class="status-text">有效</span> <!-- 可以根据实际状态动态改变 -->
+            <span class="status-text">
+              {{ 
+                detailData.match_status === 'confirmed' ? '已匹配' : 
+                detailData.match_status === 'completed' ? '已完成' :
+                detailData.match_status === 'pending' ? '匹配处理中' :
+                '有效' 
+              }}
+            </span>
           </div>
           <h1 class="thing-name">{{ detailData.title }}</h1>
           <div class="thing-meta">
@@ -24,10 +31,32 @@
           <div v-if="thingType === 'lost'" class="thing-points"> <!-- 修改：使用 v-if 和新 class -->
             <gift-outlined /> 积分奖励：<span class="points-value">{{ detailData.points }}</span> 积分
           </div>
-          <a-button type="primary" shape="round" size="large" @click="navigateToChat" class="claim-button">
-            <template #icon><MessageOutlined /></template>
-            {{ thingType === 'found' ? '联系拾物者' : '联系失主' }}
-          </a-button>
+          <div class="actions-buttons-group" style="margin-top: auto; display: flex; gap: 10px; align-items: center;">
+            <a-button 
+              type="primary" 
+              shape="round" 
+              size="large" 
+              @click="navigateToChat" 
+              class="claim-button"
+              :disabled="detailData.user?.id === userStore.user_id"
+            >
+              <template #icon><MessageOutlined /></template>
+              {{ detailData.user?.id === userStore.user_id ? '我的物品' : (detailData.type === 'found' ? '联系拾物者' : '联系失主') }}
+            </a-button>
+            <!-- 新增/确认：请求匹配按钮 -->
+            <a-button
+              v-if="detailData.user?.id !== userStore.user_id"
+              type="default"
+              shape="round"
+              size="large"
+              @click="handleRequestMatch"
+              :disabled="isMatchButtonDisabled"
+              class="request-match-button"
+            >
+              <template #icon><InteractionOutlined /></template>
+              {{ matchButtonText }}
+            </a-button>
+          </div>
         </div>
         <!-- 右侧操作/统计 -->
         <div class="thing-actions-stats"> <!-- 修改 class -->
@@ -255,7 +284,7 @@ import { FormInstance, message } from 'ant-design-vue';
 import { useRoute, useRouter } from 'vue-router/dist/vue-router';
 import { createApi as createCommentApi, likeApi, listThingCommentsApi, deleteCommentsApi } from '/@/api/index/comment';
 import { createApi as orderCreat } from '/@/api/index/order';
-import { addCollectUserApi, addScoreApi, addWishUserApi, detailApi, listApi as listThingList } from '/@/api/index/thing';
+import { addCollectUserApi, addScoreApi, addWishUserApi, detailApi, listApi as listThingList, requestMatchApi } from '/@/api/index/thing';
 import AvatarIcon from '/@/assets/images/avatar.jpg';
 import RecommendIcon from '/@/assets/images/recommend-hover.svg';
 import ShareIcon from '/@/assets/images/share-icon.svg';
@@ -272,7 +301,8 @@ import {
   FormOutlined,
   HeartOutlined,
   StarOutlined,
-  ShareAltOutlined
+  ShareAltOutlined,
+  InteractionOutlined
 } from '@ant-design/icons-vue'; // 导入所需图标
 import { ref, reactive, onMounted, computed, nextTick } from 'vue'; // 导入 computed, nextTick
 // 导入新图标
@@ -300,6 +330,11 @@ interface DetailData {
   collect_count: number;
   user: UserInfo; // 使用 UserInfo 接口
   id: string;
+  // --- 新增：匹配相关字段 ---
+  match_status?: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled' | null | string;
+  match_user?: UserInfo | null; // 请求匹配的用户
+  // --- 新增：物品类型字段，用于API调用 ---
+  type?: 'lost' | 'found' | string; // 从后端获取或在前端设置
 }
 
 let detailData = ref<DetailData>({
@@ -313,6 +348,10 @@ let detailData = ref<DetailData>({
   collect_count: 0,
   user: { id: '' }, // 初始化 user 对象
   id: '',
+  // --- 初始化新增字段 ---
+  match_status: null,
+  match_user: null,
+  type: '', // 初始化为空，将在 getThingDetail 中设置
 });
 let tabUnderLeft = ref(6);
 let tabData = ref(['详细描述', '评论区']);
@@ -354,17 +393,17 @@ let thingType = ref(''); // 新增：用于存储物品类型
 
 onMounted(() => {
   thingId.value = route.query.id?.toString() || ''; // 确保是字符串
-  thingType.value = route.query.type?.toString() || ''; // *** 获取 type 参数 ***
+  const itemTypeFromRoute = route.query.type?.toString() || ''; // 从路由获取类型
 
-  if (!thingId.value || !thingType.value) { // 检查 id 和 type 是否都存在
+  if (!thingId.value || !itemTypeFromRoute) { 
       message.error('无效的物品信息');
-      router.push({ name: 'portal' }); // 跳转回首页或错误页
+      router.push({ name: 'portal' }); 
       return;
   }
-
-  getThingDetail();
+  // detailData.value.type = itemTypeFromRoute; // 在获取详情前设置类型，确保API调用时类型已存在
+  getThingDetail(itemTypeFromRoute); // 传递类型给获取详情函数
   getRecommendThing();
-  getCommentList();
+  getCommentList(itemTypeFromRoute); // 评论列表也可能需要类型
 });
 
 const selectTab = (index) => {
@@ -372,14 +411,15 @@ const selectTab = (index) => {
   tabUnderLeft.value = 6 + 54 * index;
 };
 
-const getThingDetail = () => {
-  // *** 在调用 API 时传递 id 和 type ***
-  detailApi({ id: thingId.value, type: thingType.value })
+const getThingDetail = (itemType: string) => { //接收 itemType 参数
+  detailApi({ id: thingId.value, type: itemType }) // 使用传入的 itemType
     .then((res) => {
-      detailData.value = res.data; // 假设数据在 res.data
-      // --- 新增日志：打印物品发布者 ID ---
+      detailData.value = { 
+        ...res.data, 
+        type: itemType // 将路由中的 type 保存到 detailData，确保它存在
+      }; 
       console.log(`[Debug] Item Publisher ID (detailData.user?.id): ${detailData.value.user?.id}`);
-      // ... 其他处理 ...
+      console.log('[Debug] Fetched Detail Data with match info:', detailData.value);
     })
     .catch((err) => {
       message.error('获取详情失败');
@@ -392,7 +432,7 @@ const addToWish = () => {
     addWishUserApi({ thingId: thingId.value, username: username })
       .then((res) => {
         message.success(res.msg);
-        getThingDetail();
+        getThingDetail(detailData.value.type as string); // 刷新物品详情以更新匹配状态
       })
       .catch((err) => {
         console.log('操作失败');
@@ -411,7 +451,7 @@ const collect = () => {
     addCollectUserApi({ thingId: thingId.value, username: username })
       .then((res) => {
         message.success(res.msg);
-        getThingDetail();
+        getThingDetail(detailData.value.type as string); // 刷新物品详情以更新匹配状态
       })
       .catch((err) => {
         console.log('收藏失败');
@@ -483,12 +523,12 @@ const showReplyInput = (item) => {
 };
 
 // --- 修改：获取评论列表 ---
-const getCommentList = () => {
+const getCommentList = (itemType: string) => {
   // data.loading = true; // 假设 data 对象中有 loading 状态
-  console.log('Fetching comments for thingId:', thingId.value, 'type:', thingType.value, 'order:', order.value);
+  console.log('Fetching comments for thingId:', thingId.value, 'type:', itemType, 'order:', order.value);
   listThingCommentsApi({
       thingId: thingId.value,
-      type: thingType.value,
+      type: itemType, // 使用传入的 itemType
       order: order.value
     })
     .then((res) => {
@@ -556,14 +596,14 @@ const sendComment = () => {
   createCommentApi({
     content: text,
     thingId: thingId.value, // 修改：thing_id -> itemId
-    itemType: thingType.value, // 修改：thing_type -> itemType
+    itemType: detailData.value.type, // 修改：thing_type -> itemType
     user_id: userStore.user_id, // 新增：传递 user_id (如果后端需要)
     parentCommentId: null, // 修改：parent_comment_id -> parentCommentId (顶级评论为 null)
   })
     .then(() => {
       message.success('评论成功');
       newCommentContent.value = ''; // 清空输入框
-      getCommentList(); // 刷新评论列表
+      getCommentList(detailData.value.type as string); // 刷新评论列表
     })
     .catch((err) => {
       console.log(err);
@@ -606,7 +646,7 @@ const submitReply = (targetComment: Comment, topLevelComment?: Comment) => {
   createCommentApi({
     content: text,
     thingId: thingId.value, // 修改：thing_id -> itemId
-    itemType: thingType.value, // 修改：thing_type -> itemType
+    itemType: detailData.value.type, // 修改：thing_type -> itemType
     user_id: userStore.user_id, // 新增：传递 user_id (如果后端需要)
     parentCommentId: parentId, // 修改：parent_comment_id -> parentCommentId
   })
@@ -614,7 +654,7 @@ const submitReply = (targetComment: Comment, topLevelComment?: Comment) => {
       message.success('回复成功');
       targetComment.replyText = ''; // 清空输入框
       targetComment.showReply = false; // 关闭输入框
-      getCommentList(); // 刷新评论列表
+      getCommentList(detailData.value.type as string); // 刷新评论列表
     })
     .catch((err) => {
       console.log(err);
@@ -646,7 +686,7 @@ const like = (commentId: string | number) => { // 注意：这里也有一个 li
         return false;
       };
       if (!updateLikes(commentData.value)) {
-         getCommentList(); // 如果局部更新失败，则刷新列表
+         getCommentList(detailData.value.type as string); // 如果局部更新失败，则刷新列表
       }
     })
     .catch((err) => {
@@ -660,7 +700,7 @@ const deleteCommentOrReply = (commentId: string | number) => {
   deleteCommentsApi({ id: commentId }) // 传递 ID
     .then((res) => {
       message.success('删除成功');
-      getCommentList(); // 刷新列表
+      getCommentList(detailData.value.type as string); // 刷新列表
     })
     .catch((err) => {
       console.log(err);
@@ -672,7 +712,7 @@ const deleteCommentOrReply = (commentId: string | number) => {
 const sortCommentList = (sortType: 'recent' | 'hot') => { // 注意：这里也有一个 sortCommentList 函数，确保只保留一个有效的
   sortIndex.value = sortType === 'recent' ? 0 : 1;
   order.value = sortType;
-  getCommentList(); // 重新获取列表
+  getCommentList(detailData.value.type as string); // 重新获取列表
 };
 
 // --- 修改：导航到聊天页面的函数 ---
@@ -711,7 +751,7 @@ const navigateToChat = () => {
     },
     query: {
       thingId: thingId.value,
-      thingType: thingType.value
+      thingType: detailData.value.type // 使用 detailData.value.type
     }
   };
   console.log('Preparing to navigate with params:', routeParams); // <-- 日志 7: 准备跳转
@@ -724,6 +764,102 @@ const navigateToChat = () => {
     console.error('Error during router.push:', error); // <-- 日志 9: 跳转时发生错误
     message.error('页面跳转失败，请稍后重试');
   }
+};
+
+// --- 新增：计算属性判断是否可以请求匹配 ---
+const canRequestMatch = computed(() => { // 这个计算属性在上一版已存在，用于更复杂的逻辑，当前按钮直接用 isMatchButtonDisabled
+  if (!userStore.user_id || !detailData.value) return false;
+  if (detailData.value.user?.id === userStore.user_id) return false;
+  return !detailData.value.match_status || ['rejected', 'cancelled', '', null].includes(detailData.value.match_status);
+});
+
+const matchButtonText = computed(() => {
+  if (!detailData.value) return '请求匹配';
+  // 如果是物品发布者自己，不应该看到这个按钮，但作为v-if的补充逻辑
+  if (detailData.value.user?.id === userStore.user_id) return '我的物品';
+
+  switch (detailData.value.match_status) {
+    case 'pending':
+      // 检查是否是当前登录用户发起的请求
+      if (detailData.value.match_user?.id === userStore.user_id) {
+        return '已请求，待确认';
+      }
+      return '他人匹配中'; // 其他人的请求正在处理
+    case 'confirmed':
+       // 检查是否是与当前登录用户匹配的
+      if (detailData.value.match_user?.id === userStore.user_id) {
+        return '匹配已同意';
+      }
+      return '已与他人匹配';
+    case 'completed':
+      if (detailData.value.match_user?.id === userStore.user_id) {
+        return '匹配已完成';
+      }
+      return '已与他人完成';
+    case 'rejected': // 如果是当前用户被拒绝，可以重新请求
+      if (detailData.value.match_user?.id === userStore.user_id) {
+        return '匹配被拒,重试?';
+      }
+      return '请求匹配'; // 其他情况或未定义match_user
+    case 'cancelled':
+      return '请求匹配';
+    default: // null, '', undefined
+      return '请求匹配';
+  }
+});
+
+const isMatchButtonDisabled = computed(() => {
+  if (!userStore.user_id || !detailData.value) return true;
+  // 物品发布者自己不能点击（v-if已处理，这里是双重保险）
+  if (detailData.value.user?.id === userStore.user_id) return true;
+
+  const status = detailData.value.match_status;
+  // 如果是当前用户发起的pending请求，则禁用按钮
+  if (status === 'pending' && detailData.value.match_user?.id === userStore.user_id) return true;
+  // 如果是其他人的pending请求，也禁用按钮
+  if (status === 'pending' && detailData.value.match_user?.id !== userStore.user_id) return true;
+  // 如果已确认或已完成 (无论是和谁)，则禁用
+  if (status === 'confirmed' || status === 'completed') return true;
+  // 如果是当前用户被拒绝，则不禁用，允许重试
+  if (status === 'rejected' && detailData.value.match_user?.id === userStore.user_id) return false;
+
+  return false; // 默认不禁用，允许点击请求
+});
+
+
+// --- 新增：处理请求匹配 ---
+const handleRequestMatch = () => {
+  if (!userStore.user_id) {
+    message.warn('请先登录再进行操作');
+    router.push({ name: 'login' });
+    return;
+  }
+  // 确保 detailData.value.id 和 detailData.value.type 存在
+  if (!detailData.value || !detailData.value.id || !detailData.value.type) {
+    message.error('物品信息不完整，无法请求匹配');
+    console.error('Missing thingId or itemType for requestMatch:', detailData.value);
+    return;
+  }
+
+  // 再次确认不是自己的物品
+  if (detailData.value.user?.id === userStore.user_id) {
+    message.info('您不能与自己发布的物品进行匹配');
+    return;
+  }
+
+  // 修改：在调用 requestMatchApi 时传递 userStore.user_id
+  requestMatchApi({ 
+    thingId: detailData.value.id, 
+    itemType: detailData.value.type,
+    userId: userStore.user_id // 新增 userId
+  })
+    .then(res => {
+      message.success(res.msg || '匹配请求已发送！');
+      getThingDetail(detailData.value.type as string); // 刷新物品详情以更新匹配状态
+    })
+    .catch(err => {
+      message.error(err.msg || '请求匹配失败');
+    });
 };
 
 </script>
@@ -871,6 +1007,16 @@ const navigateToChat = () => {
       box-shadow: 0 4px 12px rgba(106, 142, 230, 0.4);
       transform: translateY(-2px);
     }
+  }
+
+  .request-match-button {
+    min-width: 140px;
+  }
+  .actions-buttons-group {
+    margin-top: auto; 
+    width: 100%; 
+    max-width: 360px; // 稍微增大以容纳可能更长的按钮文字
+    align-self: flex-start; 
   }
 }
 

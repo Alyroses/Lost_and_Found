@@ -76,7 +76,9 @@
                   </div>
                   <div class="content">
                     <p>{{ item.content }}</p>
-                    <span class="view-chat-prompt">点击查看相应评论</span>
+                    <span v-if="item.notice_type === 'match_request'" class="view-match-prompt">点击处理匹配请求</span>
+                    <span v-else-if="item.notice_type === 'chat_message'" class="view-chat-prompt">点击查看对话</span>
+                    <span v-else class="view-chat-prompt">点击查看详情</span>
                   </div>
                 </div>
               </div>
@@ -99,12 +101,13 @@ import { useRouter } from 'vue-router';
 import { listApi, markAsReadApi } from '/@/api/index/notice';
 import { useUserStore } from "/@/store";
 // 修改：导入 Tabs
-import { message, Spin as ASpin, Empty as AEmpty, Button as AButton, Modal, Tabs as ATabs, TabPane as ATabPane } from 'ant-design-vue';
+import { message, Spin as ASpin, Empty as AEmpty, Button as AButton, Modal, Tabs as ATabs, TabPane as ATabPane, Badge as ABadge } from 'ant-design-vue';
 // 导入默认图标或不同类型的图标
 import defaultNoticeIcon from '/@/assets/icons/svg/notice.svg';
 import chatIcon from '/@/assets/icons/svg/chat-bubble.svg';
 import likeIcon from '/@/assets/icons/svg/like.svg';
 import replyIcon from '/@/assets/icons/svg/reply.svg';
+import matchRequestIcon from '/@/assets/icons/svg/user-check.svg'; // 新增匹配请求图标
 import defaultAvatar from '/@/assets/images/avatar.jpg';
 
 const userStore = useUserStore();
@@ -127,7 +130,8 @@ const interactiveNotifications = computed(() => {
   return msgData.value.filter(item => 
     item.notice_type === 'like' || 
     item.notice_type === 'reply' ||
-    item.notice_type === 'comment' // Added 'comment'
+    item.notice_type === 'comment' || // Added 'comment'
+    item.notice_type === 'match_request' // 新增：处理匹配请求通知
   );
 });
 
@@ -174,7 +178,9 @@ const getNoticeIconOrAvatar = (item) => {
     case 'comment':
       return item.sender?.avatar || defaultAvatar; // Show sender's avatar for likes and comments
     case 'reply':
-      return replyIcon; // Or sender's avatar if preferred: item.sender?.avatar || defaultAvatar;
+      return item.sender?.avatar || defaultAvatar; // 统一使用发送者头像
+    case 'match_request': // 新增
+      return item.sender?.avatar || matchRequestIcon; // 显示请求者的头像，若无则显示特定图标
     default:
       return defaultNoticeIcon; // Fallback to a generic notice icon
   }
@@ -193,6 +199,8 @@ const getNoticeTitle = (item) => {
       return `${senderName} 评论了您的物品`;
     case 'reply':
       return `${senderName} 回复了您的评论`;
+    case 'match_request': // 新增
+      return item.title || `${senderName} 请求与您的物品匹配`; // 后端已提供title，可直接使用
     default:
       return item.title || '系统通知';
   }
@@ -211,9 +219,11 @@ const formatTime = (timeStr) => {
 };
 
 // --- 新增：统一处理通知点击 ---
-const handleNoticeClick = (item: any) => {
+const handleNoticeClick = (item) => {
   if (item.notice_type === 'chat_message') {
     goToChatAndMarkRead(item);
+  } else if (item.notice_type === 'match_request') { // 新增：处理匹配请求点击
+    goToMatchManagementAndMarkRead(item);
   } else if (item.thing_id) {
     goToDetailAndMarkRead(item);
   }
@@ -223,7 +233,7 @@ const handleNoticeClick = (item: any) => {
 };
 
 // --- 标记单个通知为已读 (辅助函数) ---
-const markSingleNoticeAsRead = async (item: any) => {
+const markSingleNoticeAsRead = async (item) => {
    if (!item.is_read) {
      try {
        console.log(`Marking single notice ${item.id} as read...`);
@@ -300,6 +310,17 @@ const goToDetailAndMarkRead = async (item) => {
       query: { id: thingIdForNav, type: thingTypeForNav } 
   });
 }
+
+// --- 新增：跳转到匹配管理页面并标记已读 ---
+const goToMatchManagementAndMarkRead = async (item: any) => {
+  if (!item.is_read) {
+    await markSingleNoticeAsRead(item);
+  }
+  // 跳转到 "我发布的" 页面的 "匹配管理" 标签
+  // thing-edit-view.vue 内部通过 activeViewType='matches' 来显示匹配管理
+  router.push({ name: 'thingEdit', query: { view: 'matches' } }); // 假设 thingEdit 是该页面的路由名称
+                                                                  // 并在 thing-edit-view.vue 的 onMounted 或 watch 中处理 query.view
+};
 
 // --- 新增：标记所有消息为已读 ---
 const markAllAsRead = async () => {
@@ -568,6 +589,19 @@ const markAllAsRead = async () => {
       color: @theme-color;
       opacity: 0.9;
       &:hover {
+        opacity: 1;
+        text-decoration: underline;
+      }
+    }
+    // 新增：为匹配请求通知添加特定提示
+    .view-match-prompt {
+      display: block;
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: @theme-color; // 可以用不同颜色，如 #28a745 (绿色)
+      opacity: 0.9;
+       &:hover {
         opacity: 1;
         text-decoration: underline;
       }

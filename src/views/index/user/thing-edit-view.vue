@@ -19,43 +19,119 @@
                     >
                         我发布的招领
                     </button>
+                    <!-- 修改：匹配管理标签按钮，增加徽标 -->
+                    <button
+                        :class="{ active: activeViewType === 'matches' }"
+                        @click="setActiveView('matches')"
+                        class="segment-button"
+                    >
+                        匹配管理
+                         <a-badge :count="dataMatchRequests.totalUnread" :offset="[10, -5]" v-if="dataMatchRequests.totalUnread > 0"/>
+                    </button>
                 </div>
             </div>
 
-            <h2 class="section-title">{{ activeViewType === 'lost' ? '我发布的失物列表' : '我发布的招领列表' }}</h2>
-            <a-table size="middle" rowKey="id" :loading="currentTableLoading" :columns="unifiedColumns"
-                :data-source="currentTableData" :scroll="{ x: 'max-content' }" :pagination="{
-                    size: 'default',
-                    current: activeViewType === 'lost' ? dataLost.page : dataFound.page,
-                    pageSize: activeViewType === 'lost' ? dataLost.pageSize : dataFound.pageSize,
-                    onChange: handlePageChange,
-                    showSizeChanger: false,
-                    showTotal: (total) => `共${total}条数据`,
-                }">
-                <template #bodyCell="{ text, record, index, column }">
-                    <template v-if="column.key === 'operation'">
-                        <span class="action-buttons">
-                            <a @click="handleEdit(record)" class="action-button">修改</a>
-                            <a-divider type="vertical" />
-                            <a-popconfirm title="确定取消发布吗?" ok-text="是" cancel-text="否"
-                                @confirm="handleConfirmDelete(record)">
-                                <a href="#" class="action-button">删除发布</a>
-                            </a-popconfirm>
-                            <a-divider type="vertical" />
-                            <a-popconfirm title="确定标记为配对成功吗?" ok-text="是" cancel-text="否"
-                                @confirm="handleMatchSuccess(record)">
-                                <a href="#" class="action-button">配对成功</a>
-                            </a-popconfirm>
-                        </span>
+            <!-- 我发布的失物/招领列表 -->
+            <template v-if="activeViewType === 'lost' || activeViewType === 'found'">
+                <h2 class="section-title">{{ activeViewType === 'lost' ? '我发布的失物列表' : '我发布的招领列表' }}</h2>
+                <a-table size="middle" rowKey="id" :loading="currentTableLoading" :columns="unifiedColumns"
+                    :data-source="currentTableData" :scroll="{ x: 'max-content' }" :pagination="{
+                        size: 'default',
+                        current: activeViewType === 'lost' ? dataLost.page : dataFound.page,
+                        pageSize: activeViewType === 'lost' ? dataLost.pageSize : dataFound.pageSize,
+                        onChange: handlePageChange,
+                        showSizeChanger: false,
+                        showTotal: (total) => `共${total}条数据`,
+                    }">
+                    <template #bodyCell="{ text, record, index, column }">
+                        <template v-if="column.key === 'operation'">
+                            <span class="action-buttons">
+                                <a @click="handleEdit(record)" class="action-button">修改</a>
+                                <a-divider type="vertical" />
+                                <a-popconfirm title="确定取消发布吗?" ok-text="是" cancel-text="否"
+                                    @confirm="handleConfirmDelete(record)">
+                                    <a href="#" class="action-button">删除发布</a>
+                                </a-popconfirm>
+                                <a-divider type="vertical" />
+                                <!-- 修改：根据 match_status 显示不同操作 -->
+                                <template v-if="record.match_status === 'completed'">
+                                     <a-tag color="blue">已完成匹配</a-tag>
+                                </template>
+                                <template v-else-if="record.match_status === 'confirmed'">
+                                    <a-popconfirm title="确定标记为最终完成吗?" ok-text="是" cancel-text="否"
+                                        @confirm="handleMatchSuccess(record)">
+                                        <a href="#" class="action-button" style="color: green;">标记为最终完成</a>
+                                    </a-popconfirm>
+                                </template>
+                                <template v-else-if="record.match_status === 'pending' && record.match_user && record.match_user.id !== userStore.user_id">
+                                    <a-tag color="orange" @click="setActiveView('matches')" style="cursor: pointer;">待您处理匹配</a-tag>
+                                </template>
+                                <template v-else-if="record.match_status === 'pending' && record.match_user && record.match_user.id === userStore.user_id">
+                                     <a-tag color="processing">您已请求</a-tag>
+                                </template>
+                                 <template v-else-if="record.match_status === 'rejected'">
+                                     <a-tag color="error">匹配已拒绝</a-tag>
+                                </template>
+                                <template v-else-if="!record.match_status || record.match_status === 'cancelled'">
+                                    <a-popconfirm title="确定标记为配对成功吗?" ok-text="是" cancel-text="否"
+                                        @confirm="handleMatchSuccess(record)">
+                                        <a href="#" class="action-button">手动标记完成</a>
+                                    </a-popconfirm>
+                                </template>
+                            </span>
+                        </template>
+                        <template v-else-if="column.key === 'description'">
+                            {{ text ? String(text).substring(0, 30) + (String(text).length > 30 ? '...' : '') : '--' }}
+                        </template>
+                        <template v-else-if="column.key === 'status'">
+                            {{ formatStatus(text, activeViewType, record.match_status, record.match_user?.id === userStore.user_id) }}
+                        </template>
                     </template>
-                    <template v-else-if="column.key === 'description'">
-                        {{ text ? String(text).substring(0, 30) + (String(text).length > 30 ? '...' : '') : '--' }}
+                </a-table>
+            </template>
+
+            <!-- 新增：匹配管理列表 -->
+            <template v-if="activeViewType === 'matches'">
+                <h2 class="section-title">收到的匹配请求 (待处理)</h2>
+                <a-table size="middle" rowKey="id" :loading="dataMatchRequests.loading" :columns="matchRequestColumns"
+                    :data-source="dataMatchRequests.dataList" :scroll="{ x: 'max-content' }" :pagination="{
+                        size: 'default',
+                        current: dataMatchRequests.page,
+                        pageSize: dataMatchRequests.pageSize,
+                        onChange: handleMatchRequestPageChange,
+                        showSizeChanger: false,
+                        showTotal: (total) => `共${total}条待处理请求`,
+                    }">
+                    <template #bodyCell="{ text, record, column }">
+                         <template v-if="column.key === 'requester'">
+                            <a-avatar :src="record.match_user?.avatar || defaultAvatar" size="small" />
+                            <span style="margin-left: 8px;">{{ record.match_user?.username || '未知用户' }}</span>
+                        </template>
+                        <template v-else-if="column.key === 'itemTitle'">
+                            <a @click="gotoDetail(record)">{{ record.title }}</a>
+                        </template>
+                        <template v-else-if="column.key === 'itemType'">
+                            <a-tag :color="record.type === 'lost' ? 'cyan' : 'purple'">{{ record.type === 'lost' ? '失物' : '招领' }}</a-tag>
+                        </template>
+                        <template v-else-if="column.key === 'operation'">
+                            <span class="action-buttons" v-if="record.match_status === 'pending'">
+                                <a-popconfirm title="确定同意该用户的匹配请求吗?" ok-text="同意" cancel-text="再想想"
+                                    @confirm="handleConfirmMatchRequest(record)">
+                                    <a href="#" class="action-button" style="color: green;">同意匹配</a>
+                                </a-popconfirm>
+                                <a-divider type="vertical" />
+                                <a-popconfirm title="确定拒绝该用户的匹配请求吗?" ok-text="拒绝" cancel-text="取消"
+                                    @confirm="handleRejectMatchRequest(record)">
+                                    <a href="#" class="action-button" style="color: red;">拒绝匹配</a>
+                                </a-popconfirm>
+                            </span>
+                             <span v-else>
+                                <a-tag :color="getMatchStatusTagColor(record.match_status)">{{ formatMatchStatus(record.match_status) }}</a-tag>
+                            </span>
+                        </template>
                     </template>
-                    <template v-else-if="column.key === 'status'">
-                        {{ formatStatus(text, activeViewType) }}
-                    </template>
-                </template>
-            </a-table>
+                </a-table>
+            </template>
         </div>
 
         <!--弹窗区域-->
@@ -145,29 +221,44 @@ import { listApi as listClassificationApi } from '/@/api/admin/classification';
 import { listApi as listTagApi } from '/@/api/admin/tag';
 // Import user-specific APIs from index/thing.ts
 import {
-    listUserThingApi, // For user's lost items
-    listUserFoundThingApi, // For user's found items
-    createApi as createUserThingApi, // For creating lost items
-    createFoundApi as createUserFoundThingApi, // For creating found items
-    updateApi as updateUserThingApi, // For updating user's items
-    deleteUserThingApi, // For deleting user's items
-    updateUserThingStatusApi // For updating status of user's items
+    listUserThingApi, 
+    listUserFoundThingApi, 
+    createApi as createUserThingApi, 
+    createFoundApi as createUserFoundThingApi, 
+    updateApi as updateUserThingApi, 
+    deleteUserThingApi, 
+    updateUserThingStatusApi,
+    // 新增导入
+    listIncomingMatchRequestsApi,
+    respondToMatchRequestApi
 } from '/@/api/index/thing';
 import { useUserStore } from "/@/store";
 import { BASE_URL } from "/@/store/constants";
+import defaultAvatar from '/@/assets/images/avatar.jpg'; // 导入默认头像
 
 const userStore = useUserStore();
 const router = useRouter();
 
-const activeViewType = ref<'lost' | 'found'>('lost');
+const activeViewType = ref<'lost' | 'found' | 'matches'>('lost'); 
 
 const unifiedColumns = reactive([
     { title: '标题', dataIndex: 'title', key: 'title', width: 200, ellipsis: true },
-    { title: '积分', dataIndex: 'points', key: 'points', width: 100 },
-    { title: '地区', dataIndex: 'location', key: 'location', width: 180, ellipsis: true },
-    { title: '详细描述', dataIndex: 'description', key: 'description', ellipsis: true },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
-    { title: '操作', key: 'operation', align: 'center', fixed: 'right', width: 240 },
+    { title: '积分', dataIndex: 'points', key: 'points', width: 80 },
+    { title: '地区', dataIndex: 'location', key: 'location', width: 150, ellipsis: true },
+    { title: '详细描述', dataIndex: 'description', key: 'description', ellipsis: true, width: 250 },
+    { title: '状态', dataIndex: 'status', key: 'status', width: 120 }, // 状态列，由 formatStatus 格式化
+    { title: '操作', key: 'operation', align: 'center', fixed: 'right' as 'right', width: 260 },
+]);
+
+// 新增：匹配管理表格列
+const matchRequestColumns = reactive([
+    { title: '请求匹配的物品', dataIndex: 'title', key: 'itemTitle', width: 200, ellipsis: true },
+    { title: '请求者', key: 'requester', width: 150, ellipsis: true },
+    { title: '物品类型', dataIndex: 'type', key: 'itemType', width: 100 },
+    // { title: '请求描述', dataIndex: 'description', key: 'description', ellipsis: true, customRender: ({text}) => text ? String(text).substring(0,30) + '...' : '--' },
+    { title: '请求时间', dataIndex: 'match_request_time', key: 'match_request_time', width: 150, customRender: ({text}) => text ? new Date(text).toLocaleString() : '--'},
+    { title: '当前状态', dataIndex: 'match_status', key: 'match_status', width: 120, customRender: ({text}) => formatMatchStatus(text) },
+    { title: '操作', key: 'operation', align: 'center', fixed: 'right', width: 200 },
 ]);
 
 const beforeUpload = (file: File) => {
@@ -209,21 +300,41 @@ const dataFound = reactive({
     total: 0,
 });
 
+// 修改：Data for incoming match requests，增加 totalUnread
+const dataMatchRequests = reactive({
+    dataList: [] as any[],
+    loading: false,
+    pageSize: 10,
+    page: 1,
+    total: 0,
+    totalUnread: 0, // 用于徽标显示
+});
+
 const currentTableData = computed(() => {
-    return activeViewType.value === 'lost' ? dataLost.dataList : dataFound.dataList;
+    if (activeViewType.value === 'lost') return dataLost.dataList;
+    if (activeViewType.value === 'found') return dataFound.dataList;
+    // if (activeViewType.value === 'matches') return dataMatchRequests.dataList; // 这个由 specific table 处理
+    return [];
 });
 
 const currentTableLoading = computed(() => {
-    return activeViewType.value === 'lost' ? dataLost.loading : dataFound.loading;
+    if (activeViewType.value === 'lost') return dataLost.loading;
+    if (activeViewType.value === 'found') return dataFound.loading;
+    // if (activeViewType.value === 'matches') return dataMatchRequests.loading;
+    return false;
 });
 
-const setActiveView = (type: 'lost' | 'found') => {
+const setActiveView = (type: 'lost' | 'found' | 'matches') => {
     activeViewType.value = type;
-    // Fetch data if not already loaded or to refresh
     if (type === 'lost') {
+        dataLost.page = 1; // 重置页码
         getUserLostThings();
-    } else {
+    } else if (type === 'found') {
+        dataFound.page = 1; // 重置页码
         getUserFoundThings();
+    } else if (type === 'matches') {
+        dataMatchRequests.page = 1; // 重置页码
+        getIncomingMatchRequests(true); // 传入 true 以显示加载状态
     }
 };
 
@@ -231,10 +342,17 @@ const handlePageChange = (page: number) => {
     if (activeViewType.value === 'lost') {
         dataLost.page = page;
         getUserLostThings();
-    } else {
+    } else if (activeViewType.value === 'found') {
         dataFound.page = page;
         getUserFoundThings();
     }
+    // 分页单独处理
+};
+
+// 新增：匹配管理分页处理
+const handleMatchRequestPageChange = (page: number) => {
+    dataMatchRequests.page = page;
+    getIncomingMatchRequests(true); // 传入 true 以显示加载状态
 };
 
 let selectedOptions = ref<string[]>([]);
@@ -282,13 +400,29 @@ const modal = reactive({
 const myform = ref<FormInstance>();
 
 onMounted(() => {
+    // --- 新增：从路由查询参数设置初始视图 ---
+    const initialView = router.currentRoute.value.query.view as typeof activeViewType.value;
+    if (initialView && ['lost', 'found', 'matches'].includes(initialView)) {
+        activeViewType.value = initialView;
+    }
+    // --- 结束 ---
+
     if (!userStore.user_id) {
         message.error("用户未登录，无法查看发布信息。");
-        router.push('/login'); // Redirect to login if not logged in
+        router.push('/login'); 
         return;
     }
-    getUserLostThings(); // Default view
-    // getUserFoundThings(); // Optionally pre-fetch or fetch on tab click
+
+    // 根据 activeViewType 加载对应数据
+    if (activeViewType.value === 'lost') {
+        getUserLostThings();
+    } else if (activeViewType.value === 'found') {
+        getUserFoundThings();
+    } else if (activeViewType.value === 'matches') {
+        getIncomingMatchRequests(true);
+    }
+    
+    getIncomingMatchRequests(); // 获取未读匹配请求数量，不显示加载动画
     getCDataList();
     getTagDataList();
 });
@@ -297,12 +431,17 @@ const getUserLostThings = () => {
     dataLost.loading = true;
     listUserThingApi({ user: userStore.user_id, page: dataLost.page, pageSize: dataLost.pageSize, type: 'lost' })
         .then((res) => {
-            // 确保响应数据格式正确
             if (res && res.data && Array.isArray(res.data.list)) {
                 dataLost.dataList = res.data.list.map((item: any) => ({ ...item, key: item.id }));
                 dataLost.total = res.data.total || res.data.list.length;
             } else {
-                throw new Error('响应数据格式不正确');
+                // 保持原有逻辑，如果API不返回list和total，则尝试直接使用res.data
+                if (Array.isArray(res.data)) {
+                     dataLost.dataList = res.data.map((item: any) => ({ ...item, key: item.id }));
+                     dataLost.total = res.total || res.data.length;
+                } else {
+                    throw new Error('失物列表响应数据格式不正确');
+                }
             }
         })
         .catch((err) => {
@@ -318,12 +457,16 @@ const getUserFoundThings = () => {
     dataFound.loading = true;
     listUserThingApi({ user: userStore.user_id, page: dataFound.page, pageSize: dataFound.pageSize, type: 'found' })
         .then((res) => {
-            // 确保响应数据格式正确
-            if (res && res.data && Array.isArray(res.data.list)) {
+             if (res && res.data && Array.isArray(res.data.list)) {
                 dataFound.dataList = res.data.list.map((item: any) => ({ ...item, key: item.id }));
                 dataFound.total = res.data.total || res.data.list.length;
             } else {
-                throw new Error('响应数据格式不正确');
+                 if (Array.isArray(res.data)) {
+                     dataFound.dataList = res.data.map((item: any) => ({ ...item, key: item.id }));
+                     dataFound.total = res.total || res.data.length;
+                 } else {
+                    throw new Error('招领列表响应数据格式不正确');
+                 }
             }
         })
         .catch((err) => {
@@ -332,6 +475,42 @@ const getUserFoundThings = () => {
         })
         .finally(() => {
             dataFound.loading = false;
+        });
+};
+
+// 修改：获取收到的匹配请求，增加 showLoadingMsg 参数
+const getIncomingMatchRequests = (showLoadingIndicator = false) => {
+    if (showLoadingIndicator) {
+        dataMatchRequests.loading = true;
+    }
+    listIncomingMatchRequestsApi({ 
+        user_id: userStore.user_id, // 这里已经使用了 userStore.user_id
+        page: dataMatchRequests.page, 
+        pageSize: dataMatchRequests.pageSize 
+    })
+        .then(res => {
+            if (res.code === 0 && res.data && Array.isArray(res.data.list)) {
+                dataMatchRequests.dataList = res.data.list.map((item: any) => ({ ...item, key: item.id }));
+                dataMatchRequests.total = res.data.total;
+                // 假设API返回的 total 就是需要用户处理的 'pending' 状态的请求总数
+                dataMatchRequests.totalUnread = res.data.list.filter(req => req.match_status === 'pending').length; 
+            } else {
+                dataMatchRequests.dataList = [];
+                dataMatchRequests.total = 0;
+                dataMatchRequests.totalUnread = 0;
+                if (res.msg && showLoadingIndicator) message.error(res.msg);
+            }
+        })
+        .catch(err => {
+            if (showLoadingIndicator) message.error(err.msg || '获取匹配请求失败');
+            dataMatchRequests.dataList = [];
+            dataMatchRequests.total = 0;
+            dataMatchRequests.totalUnread = 0;
+        })
+        .finally(() => {
+            if (showLoadingIndicator) {
+                dataMatchRequests.loading = false;
+            }
         });
 };
 
@@ -393,20 +572,118 @@ const handleConfirmDelete = (record: any) => {
 };
 
 const handleMatchSuccess = (record: any) => {
-    updateUserThingStatusApi({ id: record.id, status: 'matched', type: activeViewType.value }) // 'matched' or appropriate status
+    // 调用 updateUserThingStatusApi 时，传递 id, status, type, 和 userId
+    // activeViewType.value 在此上下文中应为 'lost' 或 'found'
+    updateUserThingStatusApi({ 
+        thing_id: record.id, // 修改：将 id 键名更改为 thing_id
+        status: 'completed', 
+        type: activeViewType.value, // 物品类型 (lost 或 found)
+        userId: userStore.user_id  // 物主ID，即当前登录用户的ID
+    }) 
         .then(() => {
-            message.success('标记配对成功');
-            activeViewType.value === 'lost' ? getUserLostThings() : getUserFoundThings();
+            message.success('标记为已完成');
+            if (activeViewType.value === 'lost') getUserLostThings();
+            else if (activeViewType.value === 'found') getUserFoundThings();
+            getIncomingMatchRequests(); // 刷新匹配管理列表状态，以防万一相关
         })
         .catch(err => message.error(err.msg || '操作失败'));
 };
 
-const formatStatus = (status: string, type: 'lost' | 'found') => {
-    if (status === 'matched') return type === 'lost' ? '已找到' : '已归还';
-    if (status === '0' || status === 'pending') return type === 'lost' ? '寻找中' : '寻主中'; // Assuming '0' is active
-    if (status === '1' || status === 'active') return type === 'lost' ? '寻找中' : '寻主中'; // Common active status
-    // Add more status mappings as per your backend
-    return status; // Default
+// 新增：处理同意匹配请求
+const handleConfirmMatchRequest = (record: any) => {
+    // 确保 record.item_type (或 record.type) 存在
+    if (!record || record.item_type === undefined) {
+        message.error('物品类型未知，无法处理请求');
+        console.error('handleConfirmMatchRequest: item_type is undefined in record', record);
+        return;
+    }
+    respondToMatchRequestApi({ thingId: record.record_id, itemType: record.item_type, action: 'confirm' })
+        .then(res => {
+            message.success(res.msg || '已同意匹配');
+            getIncomingMatchRequests(true); 
+            // 根据 record.item_type 刷新对应的列表
+            if (record.item_type === 'lost') getUserLostThings();
+            else if (record.item_type === 'found') getUserFoundThings();
+        })
+        .catch(err => message.error(err.msg || '操作失败'));
+};
+
+// 新增：处理拒绝匹配请求
+const handleRejectMatchRequest = (record: any) => {
+    // 确保 record.item_type (或 record.type) 存在
+    if (!record || record.item_type === undefined) {
+        message.error('物品类型未知，无法处理请求');
+        console.error('handleRejectMatchRequest: item_type is undefined in record', record);
+        return;
+    }
+    respondToMatchRequestApi({ thingId: record.record_id, itemType: record.item_type, action: 'reject' })
+        .then(res => {
+            message.success(res.msg || '已拒绝匹配');
+            getIncomingMatchRequests(true); 
+            // 根据 record.item_type 刷新对应的列表
+            if (record.item_type === 'lost') getUserLostThings();
+            else if (record.item_type === 'found') getUserFoundThings();
+        })
+        .catch(err => message.error(err.msg || '操作失败'));
+};
+
+// 修改 formatStatus 以更好地区分状态
+const formatStatus = (status: string, itemType: 'lost' | 'found', matchStatus?: string, isRequester?: boolean) => {
+    if (matchStatus) {
+        switch (matchStatus) {
+            case 'pending':
+                return isRequester ? '已请求,待确认' : '有新匹配请求';
+            case 'confirmed':
+                return '已同意匹配';
+            case 'rejected':
+                return '匹配已拒绝';
+            case 'completed':
+                return '匹配已完成';
+            case 'cancelled':
+                return '匹配已取消';
+            default:
+                break;
+        }
+    }
+    // 旧的 status 字段处理逻辑 (如果物品没有 match_status)
+    if (status === 'matched' || status === 'completed') return itemType === 'lost' ? '已找到' : '已归还';
+    if (status === '0' || status === 'pending' || status === '1' || status === 'active' || !status) return itemType === 'lost' ? '寻找中' : '寻主中';
+    return status; 
+};
+
+// 新增：格式化匹配状态文本 (用于匹配管理列表)
+const formatMatchStatus = (status?: string) => {
+    switch (status) {
+        case 'pending': return '等待处理';
+        case 'confirmed': return '已同意';
+        case 'rejected': return '已拒绝';
+        case 'completed': return '已完成';
+        case 'cancelled': return '已取消';
+        default: return '未知状态';
+    }
+};
+
+// 新增：获取匹配状态标签颜色
+const getMatchStatusTagColor = (status?: string) => {
+    switch (status) {
+        case 'pending': return 'orange';
+        case 'confirmed': return 'green';
+        case 'rejected': return 'red';
+        case 'completed': return 'blue';
+        case 'cancelled': return 'default';
+        default: return 'default';
+    }
+}; 
+
+// 修改：跳转到物品详情页，使用 record.record_id 和 record.item_type
+const gotoDetail = (record: any) => {
+    // 确保 record_id 和 item_type 存在，如果不存在则给出提示或不跳转
+    if (record && record.record_id !== undefined && record.item_type !== undefined) {
+        router.push({ name: 'detail', query: { id: record.record_id, type: record.item_type } });
+    } else {
+        console.error('无法跳转到详情页：record_id 或 item_type 未定义', record);
+        message.error('无法获取物品详情，信息不完整。');
+    }
 };
 
 const handleOk = () => {
@@ -520,6 +797,13 @@ const hideModal = () => modal.visile = false;
     color: #fff; /* 活动状态文字颜色 */
     font-weight: 500; /* 活动状态文字加粗 */
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.08); /* 活动状态内阴影 */
+    position: relative; // 为了徽标定位
+}
+
+.segment-button .ant-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
 }
 
 .segment-button:hover:not(.active) {

@@ -20,7 +20,11 @@ enum URL {
     updateUserThingStatus = '/myapp/index/thing/updateUserThingStatus', // New: For user to update status (e.g., matched)
     addSorce = '/myapp/index/thing/addScore',
     createSkim = '/myapp/index/thing/createSkim',
-    getSkim = '/myapp/index/thing/getSkim'
+    getSkim = '/myapp/index/thing/getSkim',
+    // 新增：匹配相关API的URL
+    requestMatch = '/myapp/index/thing/requestMatch',
+    listIncomingMatches = '/myapp/index/thing/listIncomingMatches',
+    respondToMatch = '/myapp/index/thing/respondToMatch',
 
 }
 
@@ -45,8 +49,8 @@ const updateApi = async (params: any, data:any) => post<any>({ url: URL.update, 
 
 // New: API for user to delete their item
 const deleteUserThingApi = async (data: any) => post<any>({ url: URL.deleteUserThing, data: data, headers: {} });
-// New: API for user to update their item's status
-const updateUserThingStatusApi = async (data: any) => post<any>({ url: URL.updateUserThingStatus, data: data, headers: {} });
+// 修改：API for user to update their item's status, data can include userId
+const updateUserThingStatusApi = async (data: { thing_id: string | number, status: string, type: string, userId?: string | number }) => post<any>({ url: URL.updateUserThingStatus, data: data, headers: {} });
 
 const addScoreApi = async (params: any) => post<any>({ url: URL.addSorce, params: params, headers: {} });
 const createSkimApi = async (data: any) =>
@@ -58,12 +62,24 @@ const createSkimApi = async (data: any) =>
     });
 const getSkimApi = async (params: any) => get<any>({ url: URL.getSkim, params: params, data: {}, headers: {} });
 
+// 新增：匹配相关API函数
+// 修改：requestMatchApi 的参数类型，增加 userId
+const requestMatchApi = async (data: { thingId: string | number, itemType: string, userId: string | number }) => post<any>({ url: URL.requestMatch, data });
+const listIncomingMatchRequestsApi = async (params: any) => get<any>({ url: URL.listIncomingMatches, params });
+// 修改：respondToMatchRequestApi 的参数类型，确保 itemType 存在且被传递
+const respondToMatchRequestApi = async (data: { thingId: string | number, itemType: string, action: 'confirm' | 'reject' }) => post<any>({ url: URL.respondToMatch, data });
+
+
 export {
     addCollectUserApi, addScoreApi, addWishUserApi, createApi, createSkimApi, detailApi, getCollectThingListApi, getSkimApi, getWishThingListApi, listApi, listUserThingApi, removeCollectUserApi, removeWishUserApi, updateApi,
     getUserPointsApi,
     createFoundApi,
     listUserFoundThingApi, // Export new API
     deleteUserThingApi,    // Export new API
-    updateUserThingStatusApi // Export new API
+    updateUserThingStatusApi, // Export new API
+    // 导出新增的API
+    requestMatchApi,
+    listIncomingMatchRequestsApi,
+    respondToMatchRequestApi,
 };
 
